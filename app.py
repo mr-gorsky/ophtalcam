@@ -7,12 +7,8 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 import calendar
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.lib.units import inch
 import io
+import base64
 
 # Page configuration
 st.set_page_config(
@@ -246,135 +242,164 @@ def get_available_time_slots(date):
     
     return available_slots
 
-def generate_pdf_report(patient_data, examination_data):
-    """Generate PDF report for patient"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    styles = getSampleStyleSheet()
+def generate_html_report(patient_data, examination_data):
+    """Generate HTML report for patient"""
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>OphtalCAM Examination Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; }}
+            .header {{ text-align: center; border-bottom: 2px solid #1f77b4; padding-bottom: 20px; margin-bottom: 30px; }}
+            .section {{ margin-bottom: 25px; }}
+            .section-title {{ color: #1f77b4; border-bottom: 1px solid #ddd; padding-bottom: 5px; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
+            th, td {{ padding: 8px 12px; text-align: left; border: 1px solid #ddd; }}
+            th {{ background-color: #f5f5f5; }}
+            .footer {{ margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>OPHTALCAM - OPHTHALMOLOGY CENTER</h1>
+            <h2>Examination Report</h2>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">Patient Information</h3>
+            <table>
+                <tr><th>Name:</th><td>{patient_data['first_name']} {patient_data['last_name']}</td></tr>
+                <tr><th>Date of Birth:</th><td>{patient_data['date_of_birth']}</td></tr>
+                <tr><th>Gender:</th><td>{patient_data['gender']}</td></tr>
+                <tr><th>Patient ID:</th><td>{patient_data['patient_id']}</td></tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h3 class="section-title">Examination Results</h3>
+            
+            <h4>Visual Acuity</h4>
+            <table>
+                <tr><th></th><th>OD (Right)</th><th>OS (Left)</th></tr>
+                <tr><th>Distance Uncorrected</th><td>{examination_data['distance_vision_uncorrected_od'] or '-'}</td><td>{examination_data['distance_vision_uncorrected_os'] or '-'}</td></tr>
+                <tr><th>Distance Corrected</th><td>{examination_data['distance_vision_corrected_od'] or '-'}</td><td>{examination_data['distance_vision_corrected_os'] or '-'}</td></tr>
+                <tr><th>Near Vision</th><td>{examination_data['near_vision_od'] or '-'}</td><td>{examination_data['near_vision_os'] or '-'}</td></tr>
+            </table>
+    """
     
-    # Custom styles
-    title_style = ParagraphStyle(
-        'Title',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=30,
-        alignment=1
-    )
+    # Add refraction if available
+    if examination_data.get('refraction_performed'):
+        html_content += f"""
+            <h4>Refraction</h4>
+            <table>
+                <tr><th></th><th>OD (Right)</th><th>OS (Left)</th></tr>
+                <tr><th>Sphere</th><td>{examination_data['sphere_od'] or '-'} D</td><td>{examination_data['sphere_os'] or '-'} D</td></tr>
+                <tr><th>Cylinder</th><td>{examination_data['cylinder_od'] or '-'} D</td><td>{examination_data['cylinder_os'] or '-'} D</td></tr>
+                <tr><th>Axis</th><td>{examination_data['axis_od'] or '-'}°</td><td>{examination_data['axis_os'] or '-'}°</td></tr>
+                <tr><th>Addition</th><td>{examination_data['addition_od'] or '-'} D</td><td>{examination_data['addition_os'] or '-'} D</td></tr>
+                <tr><th>PD</th><td>{examination_data['pd_od'] or '-'} mm</td><td>{examination_data['pd_os'] or '-'} mm</td></tr>
+            </table>
+        """
     
-    heading_style = ParagraphStyle(
-        'Heading',
-        parent=styles['Heading2'],
-        fontSize=12,
-        spaceAfter=12
-    )
+    html_content += f"""
+            <h4>Tonometry</h4>
+            <table>
+                <tr><th>OD (Right):</th><td>{examination_data['tonometry_od'] or '-'} mmHg</td></tr>
+                <tr><th>OS (Left):</th><td>{examination_data['tonometry_os'] or '-'} mmHg</td></tr>
+            </table>
+        </div>
+    """
     
-    normal_style = styles['Normal']
+    # Add diagnosis and treatment if available
+    if examination_data['diagnosis']:
+        html_content += f"""
+        <div class="section">
+            <h3 class="section-title">Diagnosis</h3>
+            <p>{examination_data['diagnosis']}</p>
+        </div>
+        """
     
-    story = []
+    if examination_data['treatment']:
+        html_content += f"""
+        <div class="section">
+            <h3 class="section-title">Recommended Treatment</h3>
+            <p>{examination_data['treatment']}</p>
+        </div>
+        """
+    
+    html_content += f"""
+        <div class="footer">
+            <p><strong>Examination Date:</strong> {examination_data['visit_date']}</p>
+            <p><strong>Physician:</strong> ___________________</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html_content
+
+def generate_csv_report(patient_data, examination_data):
+    """Generate CSV report for patient"""
+    import csv
+    import io
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
     
     # Header
-    story.append(Paragraph("OPHTALCAM - OPHTHALMOLOGY CENTER", title_style))
-    story.append(Paragraph("Examination Report", styles['Heading2']))
-    story.append(Spacer(1, 20))
+    writer.writerow(["OPHTALCAM - OPHTHALMOLOGY CENTER"])
+    writer.writerow(["Examination Report"])
+    writer.writerow([])
     
-    # Patient information
-    story.append(Paragraph("Patient Information:", heading_style))
-    patient_info = [
-        ["Name:", f"{patient_data['first_name']} {patient_data['last_name']}"],
-        ["Date of Birth:", patient_data['date_of_birth']],
-        ["Gender:", patient_data['gender']],
-        ["Patient ID:", patient_data['patient_id']]
-    ]
+    # Patient Information
+    writer.writerow(["PATIENT INFORMATION"])
+    writer.writerow(["Name:", f"{patient_data['first_name']} {patient_data['last_name']}"])
+    writer.writerow(["Date of Birth:", patient_data['date_of_birth']])
+    writer.writerow(["Gender:", patient_data['gender']])
+    writer.writerow(["Patient ID:", patient_data['patient_id']])
+    writer.writerow([])
     
-    patient_table = Table(patient_info, colWidths=[2*inch, 4*inch])
-    patient_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    story.append(patient_table)
-    story.append(Spacer(1, 20))
-    
-    # Examination details
-    story.append(Paragraph("Examination Results:", heading_style))
-    
-    # Vision
-    story.append(Paragraph("Visual Acuity:", styles['Heading3']))
-    vision_data = [
-        ["", "OD (Right)", "OS (Left)"],
-        ["Distance Uncorrected", examination_data['distance_vision_uncorrected_od'] or "-", 
-         examination_data['distance_vision_uncorrected_os'] or "-"],
-        ["Distance Corrected", examination_data['distance_vision_corrected_od'] or "-", 
-         examination_data['distance_vision_corrected_os'] or "-"],
-        ["Near Vision", examination_data['near_vision_od'] or "-", 
-         examination_data['near_vision_os'] or "-"]
-    ]
-    
-    vision_table = Table(vision_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
-    vision_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    story.append(vision_table)
-    story.append(Spacer(1, 12))
+    # Examination Results
+    writer.writerow(["EXAMINATION RESULTS"])
+    writer.writerow(["VISUAL ACUITY", "OD (Right)", "OS (Left)"])
+    writer.writerow(["Distance Uncorrected", examination_data['distance_vision_uncorrected_od'] or '-', examination_data['distance_vision_uncorrected_os'] or '-'])
+    writer.writerow(["Distance Corrected", examination_data['distance_vision_corrected_od'] or '-', examination_data['distance_vision_corrected_os'] or '-'])
+    writer.writerow(["Near Vision", examination_data['near_vision_od'] or '-', examination_data['near_vision_os'] or '-'])
+    writer.writerow([])
     
     # Refraction if available
     if examination_data.get('refraction_performed'):
-        story.append(Paragraph("Refraction:", styles['Heading3']))
-        refraction_data = [
-            ["", "OD (Right)", "OS (Left)"],
-            ["Sphere", f"{examination_data['sphere_od'] or '-'} D", f"{examination_data['sphere_os'] or '-'} D"],
-            ["Cylinder", f"{examination_data['cylinder_od'] or '-'} D", f"{examination_data['cylinder_os'] or '-'} D"],
-            ["Axis", f"{examination_data['axis_od'] or '-'}°", f"{examination_data['axis_os'] or '-'}°"],
-            ["Addition", f"{examination_data['addition_od'] or '-'} D", f"{examination_data['addition_os'] or '-'} D"],
-            ["PD", f"{examination_data['pd_od'] or '-'} mm", f"{examination_data['pd_os'] or '-'} mm"]
-        ]
-        
-        refraction_table = Table(refraction_data, colWidths=[1.2*inch, 1.5*inch, 1.5*inch])
-        refraction_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgreen),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        story.append(refraction_table)
-        story.append(Spacer(1, 12))
+        writer.writerow(["REFRACTION", "OD (Right)", "OS (Left)"])
+        writer.writerow(["Sphere", f"{examination_data['sphere_od'] or '-'} D", f"{examination_data['sphere_os'] or '-'} D"])
+        writer.writerow(["Cylinder", f"{examination_data['cylinder_od'] or '-'} D", f"{examination_data['cylinder_os'] or '-'} D"])
+        writer.writerow(["Axis", f"{examination_data['axis_od'] or '-'}°", f"{examination_data['axis_os'] or '-'}°"])
+        writer.writerow(["Addition", f"{examination_data['addition_od'] or '-'} D", f"{examination_data['addition_os'] or '-'} D"])
+        writer.writerow(["PD", f"{examination_data['pd_od'] or '-'} mm", f"{examination_data['pd_os'] or '-'} mm"])
+        writer.writerow([])
     
     # Tonometry
-    story.append(Paragraph("Tonometry:", styles['Heading3']))
-    tono_data = [
-        ["OD (Right):", f"{examination_data['tonometry_od'] or '-'} mmHg"],
-        ["OS (Left):", f"{examination_data['tonometry_os'] or '-'} mmHg"]
-    ]
+    writer.writerow(["TONOMETRY"])
+    writer.writerow(["OD (Right):", f"{examination_data['tonometry_od'] or '-'} mmHg"])
+    writer.writerow(["OS (Left):", f"{examination_data['tonometry_os'] or '-'} mmHg"])
+    writer.writerow([])
     
-    for row in tono_data:
-        story.append(Paragraph(f"{row[0]} {row[1]}", normal_style))
-    
-    story.append(Spacer(1, 12))
-    
-    # Diagnosis and treatment
+    # Diagnosis and Treatment
     if examination_data['diagnosis']:
-        story.append(Paragraph("Diagnosis:", styles['Heading3']))
-        story.append(Paragraph(examination_data['diagnosis'], normal_style))
-        story.append(Spacer(1, 12))
+        writer.writerow(["DIAGNOSIS"])
+        writer.writerow([examination_data['diagnosis']])
+        writer.writerow([])
     
     if examination_data['treatment']:
-        story.append(Paragraph("Recommended Treatment:", styles['Heading3']))
-        story.append(Paragraph(examination_data['treatment'], normal_style))
+        writer.writerow(["RECOMMENDED TREATMENT"])
+        writer.writerow([examination_data['treatment']])
+        writer.writerow([])
     
     # Footer
-    story.append(Spacer(1, 30))
-    story.append(Paragraph(f"Examination Date: {examination_data['visit_date']}", normal_style))
-    story.append(Paragraph("Physician: ___________________", normal_style))
+    writer.writerow([f"Examination Date: {examination_data['visit_date']}"])
+    writer.writerow(["Physician: ___________________"])
     
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    return output.getvalue()
 
 # Custom CSS for styling
 def load_css():
@@ -1074,22 +1099,37 @@ def medical_examination():
                         st.balloons()
                     
                     if generate_report:
-                        # Generate PDF report
+                        # Generate reports
                         patient_data = pd.read_sql(
                             "SELECT * FROM patients WHERE id = ?", 
                             conn, params=(patient_db_id,)
                         ).iloc[0]
                         
                         examination_data['visit_date'] = datetime.now().strftime('%d.%m.%Y.')
-                        pdf_buffer = generate_pdf_report(patient_data, examination_data)
+                        
+                        # Generate HTML report
+                        html_report = generate_html_report(patient_data, examination_data)
+                        
+                        # Generate CSV report
+                        csv_report = generate_csv_report(patient_data, examination_data)
                         
                         st.success("✅ Report successfully generated!")
-                        st.download_button(
-                            label="📥 Download PDF Report",
-                            data=pdf_buffer,
-                            file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf"
-                        )
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.download_button(
+                                label="📥 Download HTML Report",
+                                data=html_report,
+                                file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.html",
+                                mime="text/html"
+                            )
+                        with col2:
+                            st.download_button(
+                                label="📊 Download CSV Report",
+                                data=csv_report,
+                                file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.csv",
+                                mime="text/csv"
+                            )
                     
                 except Exception as e:
                     st.error(f"❌ Error saving: {str(e)}")
