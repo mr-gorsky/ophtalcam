@@ -35,7 +35,7 @@ def init_db():
         )
     ''')
     
-    # Patients table - COMPLETE
+    # Patients table - with auto-migration for missing columns
     c.execute('''
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,6 +53,25 @@ def init_db():
             created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # --- AUTO-MIGRATION: Add missing columns if database is older ---
+    c.execute("PRAGMA table_info(patients)")
+    existing_cols = [col[1] for col in c.fetchall()]
+
+    alter_commands = {
+        "id_number": "TEXT",
+        "emergency_contact": "TEXT",
+        "insurance_info": "TEXT",
+        "gender": "TEXT",
+        "phone": "TEXT"
+    }
+
+    for col, dtype in alter_commands.items():
+        if col not in existing_cols:
+            try:
+                c.execute(f"ALTER TABLE patients ADD COLUMN {col} {dtype}")
+            except Exception as e:
+                print(f"⚠ Could not add column {col}: {e}")
     
     # Medical History table - COMPLETE
     c.execute('''
@@ -1468,3 +1487,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
