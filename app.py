@@ -64,7 +64,7 @@ def init_db():
             appointment_date TIMESTAMP,
             duration_minutes INTEGER,
             type TEXT,
-            status TEXT DEFAULT 'Zakazano',
+            status TEXT DEFAULT 'Scheduled',
             notes TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
@@ -76,38 +76,38 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER,
             visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            anamneza TEXT,
-            vizus_od_udaljenog_bez_corr_od TEXT,
-            vizus_od_udaljenog_bez_corr_os TEXT,
-            vizus_od_udaljenog_sa_corr_od TEXT,
-            vizus_od_udaljenog_sa_corr_os TEXT,
-            vizus_iz_bliza_od TEXT,
-            vizus_iz_bliza_os TEXT,
+            anamnesis TEXT,
+            distance_vision_uncorrected_od TEXT,
+            distance_vision_uncorrected_os TEXT,
+            distance_vision_corrected_od TEXT,
+            distance_vision_corrected_os TEXT,
+            near_vision_od TEXT,
+            near_vision_os TEXT,
             
-            # REFRAKCIJA - Dodana polja
-            sfera_od REAL,
-            cilindar_od REAL,
-            os_od INTEGER,
-            sfera_os REAL,
-            cilindar_os REAL,
-            os_os INTEGER,
-            adicija_od REAL,
-            adicija_os REAL,
+            # REFRACTION - Added fields
+            sphere_od REAL,
+            cylinder_od REAL,
+            axis_od INTEGER,
+            sphere_os REAL,
+            cylinder_os REAL,
+            axis_os INTEGER,
+            addition_od REAL,
+            addition_os REAL,
             pd_od REAL,
             pd_os REAL,
-            tip_refrakcije TEXT,
+            refraction_type TEXT,
             
-            tonometrija_od TEXT,
-            tonometrija_os TEXT,
-            biomikroskopija_od TEXT,
-            biomikroskopija_os TEXT,
-            oftalmoskopija_od TEXT,
-            oftalmoskopija_os TEXT,
-            dijagnoza TEXT,
-            tretman TEXT,
-            refrakcija_obavljena BOOLEAN DEFAULT 0,
-            kontaktne_lece_prepisane BOOLEAN DEFAULT 0,
-            tip_kontaktnih_leca TEXT,
+            tonometry_od TEXT,
+            tonometry_os TEXT,
+            biomicroscopy_od TEXT,
+            biomicroscopy_os TEXT,
+            ophthalmoscopy_od TEXT,
+            ophthalmoscopy_os TEXT,
+            diagnosis TEXT,
+            treatment TEXT,
+            refraction_performed BOOLEAN DEFAULT 0,
+            contact_lens_prescribed BOOLEAN DEFAULT 0,
+            contact_lens_type TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
@@ -137,15 +137,15 @@ def init_db():
     c.execute("INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?, ?, ?)", 
               ("admin", admin_hash, "admin"))
     
-    # Insert default working hours (Mon-Fri 8:00-20:00, Sat 8:00-14:00, Sun closed)
+    # Insert default working hours (Mon-Fri 8:00-20:00)
     default_hours = [
         (0, '08:00', '20:00', 1), # Monday
         (1, '08:00', '20:00', 1), # Tuesday
         (2, '08:00', '20:00', 1), # Wednesday
         (3, '08:00', '20:00', 1), # Thursday
         (4, '08:00', '20:00', 1), # Friday
-        (5, '08:00', '14:00', 1), # Saturday
-        (6, '00:00', '00:00', 0)  # Sunday
+        (5, '08:00', '20:00', 1), # Saturday
+        (6, '08:00', '20:00', 1)  # Sunday
     ]
     
     for day_data in default_hours:
@@ -273,17 +273,17 @@ def generate_pdf_report(patient_data, examination_data):
     story = []
     
     # Header
-    story.append(Paragraph("OPHTALCAM - OFTALMOLOŠKI CENTAR", title_style))
-    story.append(Paragraph("Izvještaj o pregledu", styles['Heading2']))
+    story.append(Paragraph("OPHTALCAM - OPHTHALMOLOGY CENTER", title_style))
+    story.append(Paragraph("Examination Report", styles['Heading2']))
     story.append(Spacer(1, 20))
     
     # Patient information
-    story.append(Paragraph("Podaci o pacijentu:", heading_style))
+    story.append(Paragraph("Patient Information:", heading_style))
     patient_info = [
-        ["Ime i prezime:", f"{patient_data['first_name']} {patient_data['last_name']}"],
-        ["Datum rođenja:", patient_data['date_of_birth']],
-        ["Spol:", patient_data['gender']],
-        ["ID pacijenta:", patient_data['patient_id']]
+        ["Name:", f"{patient_data['first_name']} {patient_data['last_name']}"],
+        ["Date of Birth:", patient_data['date_of_birth']],
+        ["Gender:", patient_data['gender']],
+        ["Patient ID:", patient_data['patient_id']]
     ]
     
     patient_table = Table(patient_info, colWidths=[2*inch, 4*inch])
@@ -297,59 +297,59 @@ def generate_pdf_report(patient_data, examination_data):
     story.append(Spacer(1, 20))
     
     # Examination details
-    story.append(Paragraph("Rezultati pregleda:", heading_style))
+    story.append(Paragraph("Examination Results:", heading_style))
     
-    # Vizus
-    story.append(Paragraph("Vizus:", styles['Heading3']))
-    vizus_data = [
-        ["", "OD (Desno)", "OS (Lijevo)"],
-        ["Udaljeni bez korekcije", examination_data['vizus_od_udaljenog_bez_corr_od'] or "-", 
-         examination_data['vizus_od_udaljenog_bez_corr_os'] or "-"],
-        ["Udaljeni sa korekcijom", examination_data['vizus_od_udaljenog_sa_corr_od'] or "-", 
-         examination_data['vizus_od_udaljenog_sa_corr_os'] or "-"],
-        ["Blizu", examination_data['vizus_iz_bliza_od'] or "-", 
-         examination_data['vizus_iz_bliza_os'] or "-"]
+    # Vision
+    story.append(Paragraph("Visual Acuity:", styles['Heading3']))
+    vision_data = [
+        ["", "OD (Right)", "OS (Left)"],
+        ["Distance Uncorrected", examination_data['distance_vision_uncorrected_od'] or "-", 
+         examination_data['distance_vision_uncorrected_os'] or "-"],
+        ["Distance Corrected", examination_data['distance_vision_corrected_od'] or "-", 
+         examination_data['distance_vision_corrected_os'] or "-"],
+        ["Near Vision", examination_data['near_vision_od'] or "-", 
+         examination_data['near_vision_os'] or "-"]
     ]
     
-    vizus_table = Table(vizus_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
-    vizus_table.setStyle(TableStyle([
+    vision_table = Table(vision_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+    vision_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
-    story.append(vizus_table)
+    story.append(vision_table)
     story.append(Spacer(1, 12))
     
-    # Refrakcija if available
-    if examination_data.get('refrakcija_obavljena'):
-        story.append(Paragraph("Refrakcija:", styles['Heading3']))
-        refrakcija_data = [
-            ["", "OD (Desno)", "OS (Lijevo)"],
-            ["Sfera", f"{examination_data['sfera_od'] or '-'} D", f"{examination_data['sfera_os'] or '-'} D"],
-            ["Cilindar", f"{examination_data['cilindar_od'] or '-'} D", f"{examination_data['cilindar_os'] or '-'} D"],
-            ["Os", f"{examination_data['os_od'] or '-'}°", f"{examination_data['os_os'] or '-'}°"],
-            ["Adicija", f"{examination_data['adicija_od'] or '-'} D", f"{examination_data['adicija_os'] or '-'} D"],
+    # Refraction if available
+    if examination_data.get('refraction_performed'):
+        story.append(Paragraph("Refraction:", styles['Heading3']))
+        refraction_data = [
+            ["", "OD (Right)", "OS (Left)"],
+            ["Sphere", f"{examination_data['sphere_od'] or '-'} D", f"{examination_data['sphere_os'] or '-'} D"],
+            ["Cylinder", f"{examination_data['cylinder_od'] or '-'} D", f"{examination_data['cylinder_os'] or '-'} D"],
+            ["Axis", f"{examination_data['axis_od'] or '-'}°", f"{examination_data['axis_os'] or '-'}°"],
+            ["Addition", f"{examination_data['addition_od'] or '-'} D", f"{examination_data['addition_os'] or '-'} D"],
             ["PD", f"{examination_data['pd_od'] or '-'} mm", f"{examination_data['pd_os'] or '-'} mm"]
         ]
         
-        refrakcija_table = Table(refrakcija_data, colWidths=[1.2*inch, 1.5*inch, 1.5*inch])
-        refrakcija_table.setStyle(TableStyle([
+        refraction_table = Table(refraction_data, colWidths=[1.2*inch, 1.5*inch, 1.5*inch])
+        refraction_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgreen),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
-        story.append(refrakcija_table)
+        story.append(refraction_table)
         story.append(Spacer(1, 12))
     
-    # Tonometrija
-    story.append(Paragraph("Tonometrija:", styles['Heading3']))
+    # Tonometry
+    story.append(Paragraph("Tonometry:", styles['Heading3']))
     tono_data = [
-        ["OD (Desno):", f"{examination_data['tonometrija_od'] or '-'} mmHg"],
-        ["OS (Lijevo):", f"{examination_data['tonometrija_os'] or '-'} mmHg"]
+        ["OD (Right):", f"{examination_data['tonometry_od'] or '-'} mmHg"],
+        ["OS (Left):", f"{examination_data['tonometry_os'] or '-'} mmHg"]
     ]
     
     for row in tono_data:
@@ -357,20 +357,20 @@ def generate_pdf_report(patient_data, examination_data):
     
     story.append(Spacer(1, 12))
     
-    # Dijagnoza i tretman
-    if examination_data['dijagnoza']:
-        story.append(Paragraph("Dijagnoza:", styles['Heading3']))
-        story.append(Paragraph(examination_data['dijagnoza'], normal_style))
+    # Diagnosis and treatment
+    if examination_data['diagnosis']:
+        story.append(Paragraph("Diagnosis:", styles['Heading3']))
+        story.append(Paragraph(examination_data['diagnosis'], normal_style))
         story.append(Spacer(1, 12))
     
-    if examination_data['tretman']:
-        story.append(Paragraph("Preporučeni tretman:", styles['Heading3']))
-        story.append(Paragraph(examination_data['tretman'], normal_style))
+    if examination_data['treatment']:
+        story.append(Paragraph("Recommended Treatment:", styles['Heading3']))
+        story.append(Paragraph(examination_data['treatment'], normal_style))
     
     # Footer
     story.append(Spacer(1, 30))
-    story.append(Paragraph(f"Datum pregleda: {examination_data['visit_date']}", normal_style))
-    story.append(Paragraph("Liječnik: ___________________", normal_style))
+    story.append(Paragraph(f"Examination Date: {examination_data['visit_date']}", normal_style))
+    story.append(Paragraph("Physician: ___________________", normal_style))
     
     doc.build(story)
     buffer.seek(0)
@@ -443,42 +443,158 @@ def load_css():
         border-left: 4px solid #1f77b4;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .ophtalcam-btn {
-        background-color: #1f77b4;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-        font-weight: 500;
-        width: 100%;
-        margin-bottom: 0.5rem;
-    }
-    .ophtalcam-btn:hover {
-        background-color: #1668a0;
-    }
-    .time-slot {
-        background-color: #e8f5e8;
-        border: 1px solid #4caf50;
-        border-radius: 5px;
-        padding: 5px;
-        margin: 2px;
-        text-align: center;
-        cursor: pointer;
-    }
-    .time-slot.booked {
-        background-color: #ffebee;
-        border-color: #f44336;
-        color: #999;
-        cursor: not-allowed;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# [OSTALE FUNKCIJE - login_page, show_dashboard, patient_registration, patient_search OSTAJU ISTE]
+# Login page
+def login_page():
+    st.markdown("""
+    <style>
+    .main-header {
+        background-color: #ffffff;
+        padding: 1rem;
+        margin-bottom: 0;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Header with logos
+    col1, col2 = st.columns([3, 2])
+    
+    with col1:
+        st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=400)
+    
+    with col2:
+        st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=250)
+    
+    st.markdown("---")
+    
+    # Login form
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<h3 style='text-align: center;'>System Login</h3>", unsafe_allow_html=True)
+        
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            login_button = st.form_submit_button("LOGIN")
+            
+            if login_button:
+                if username and password:
+                    user, message = authenticate_user(username, password)
+                    if user:
+                        st.session_state.logged_in = True
+                        st.session_state.username = user[0]
+                        st.session_state.role = user[2]
+                        st.success(f"Welcome {user[0]}!")
+                        st.rerun()
+                    else:
+                        st.error(message)
+                else:
+                    st.error("Please enter username and password")
+        
+        st.markdown("""
+        <div style='text-align: center; margin-top: 2rem;'>
+        <p><strong>Demo Access:</strong></p>
+        <p>Username: <code>admin</code></p>
+        <p>Password: <code>admin123</code></p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Working Hours Management
+def manage_working_hours():
+    st.subheader("Working Hours Management")
+    
+    conn = init_db()
+    
+    # Display current working hours
+    st.write("### Current Working Hours")
+    working_hours = pd.read_sql("SELECT * FROM working_hours ORDER BY day_of_week", conn)
+    
+    if not working_hours.empty:
+        # Map day numbers to names
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        working_hours['day_name'] = working_hours['day_of_week'].apply(lambda x: day_names[x])
+        
+        st.dataframe(working_hours[['day_name', 'start_time', 'end_time', 'is_working_day']])
+    
+    # Update working hours
+    st.write("### Update Working Hours")
+    
+    with st.form("working_hours_form"):
+        col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+        
+        with col1:
+            day_of_week = st.selectbox("Day", [
+                (0, "Monday"), (1, "Tuesday"), (2, "Wednesday"), 
+                (3, "Thursday"), (4, "Friday"), (5, "Saturday"), (6, "Sunday")
+            ], format_func=lambda x: x[1])
+        
+        with col2:
+            start_time = st.time_input("Start Time", value=datetime.strptime("08:00", "%H:%M").time())
+        
+        with col3:
+            end_time = st.time_input("End Time", value=datetime.strptime("20:00", "%H:%M").time())
+        
+        with col4:
+            is_working_day = st.checkbox("Working Day", value=True)
+        
+        update_button = st.form_submit_button("Update Working Hours")
+        
+        if update_button:
+            c = conn.cursor()
+            day_num = day_of_week[0]
+            
+            try:
+                c.execute('''
+                    INSERT OR REPLACE INTO working_hours (day_of_week, start_time, end_time, is_working_day)
+                    VALUES (?, ?, ?, ?)
+                ''', (day_num, start_time.strftime('%H:%M'), end_time.strftime('%H:%M'), is_working_day))
+                
+                conn.commit()
+                st.success(f"Working hours updated for {day_of_week[1]}!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error updating working hours: {str(e)}")
+    
+    # Holiday management
+    st.write("### Manage Holidays")
+    
+    with st.form("holiday_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            holiday_date = st.date_input("Holiday Date", min_value=datetime.now().date())
+        
+        with col2:
+            description = st.text_input("Description", placeholder="e.g., Christmas Day")
+        
+        add_holiday = st.form_submit_button("Add Holiday")
+        
+        if add_holiday:
+            c = conn.cursor()
+            
+            try:
+                c.execute('''
+                    INSERT OR IGNORE INTO holidays (holiday_date, description)
+                    VALUES (?, ?)
+                ''', (holiday_date, description))
+                
+                conn.commit()
+                st.success(f"Holiday added: {holiday_date}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error adding holiday: {str(e)}")
+    
+    # Display current holidays
+    holidays = pd.read_sql("SELECT * FROM holidays ORDER BY holiday_date", conn)
+    if not holidays.empty:
+        st.write("### Current Holidays")
+        st.dataframe(holidays)
 
 # Updated Calendar with time slots
 def show_calendar():
-    st.subheader("Kalendar pregleda")
+    st.subheader("Appointment Calendar")
     
     # Initialize session state for calendar if not exists
     if 'current_month' not in st.session_state:
@@ -492,7 +608,7 @@ def show_calendar():
     # Month navigation
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
-        if st.button("◀ Prethodni mjesec"):
+        if st.button("◀ Previous Month"):
             st.session_state.current_month -= 1
             if st.session_state.current_month == 0:
                 st.session_state.current_month = 12
@@ -500,12 +616,12 @@ def show_calendar():
             st.rerun()
     
     with col2:
-        month_name = ["Siječanj", "Veljača", "Ožujak", "Travanj", "Svibanj", "Lipanj",
-                     "Srpanj", "Kolovoz", "Rujan", "Listopad", "Studeni", "Prosinac"][st.session_state.current_month - 1]
+        month_name = ["January", "February", "March", "April", "May", "June",
+                     "July", "August", "September", "October", "November", "December"][st.session_state.current_month - 1]
         st.markdown(f"<h3 style='text-align: center;'>{month_name} {st.session_state.current_year}</h3>", unsafe_allow_html=True)
     
     with col3:
-        if st.button("Sljedeći mjesec ▶"):
+        if st.button("Next Month ▶"):
             st.session_state.current_month += 1
             if st.session_state.current_month == 13:
                 st.session_state.current_month = 1
@@ -533,7 +649,7 @@ def show_calendar():
     cal = calendar.monthcalendar(st.session_state.current_year, st.session_state.current_month)
     
     # Calendar header
-    days = ["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"]
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     cols = st.columns(7)
     for i, day in enumerate(days):
         cols[i].write(f"**{day}**")
@@ -576,12 +692,12 @@ def show_calendar():
                     
                     # Show day status
                     if not is_working_day:
-                        st.markdown('<div style="color: #999; font-size: 0.8em;">Neradni dan</div>', unsafe_allow_html=True)
+                        st.markdown('<div style="color: #999; font-size: 0.8em;">Non-working</div>', unsafe_allow_html=True)
                     
                     st.markdown('</div>', unsafe_allow_html=True)
                     
                     # Date selection
-                    if is_working_day and st.button("Odaberi", key=f"select_{day}", use_container_width=True):
+                    if is_working_day and st.button("Select", key=f"select_{day}", use_container_width=True):
                         st.session_state.selected_date = current_date
                         st.rerun()
                 else:
@@ -590,7 +706,7 @@ def show_calendar():
     # Time slot selection
     if st.session_state.selected_date:
         st.markdown("---")
-        st.subheader(f"Odaberite termin za {st.session_state.selected_date.strftime('%d.%m.%Y.')}")
+        st.subheader(f"Select Time Slot for {st.session_state.selected_date.strftime('%d.%m.%Y.')}")
         
         available_slots = get_available_time_slots(st.session_state.selected_date)
         
@@ -604,12 +720,12 @@ def show_calendar():
                         st.session_state.selected_time = slot
                         st.rerun()
         else:
-            st.warning("Nema dostupnih termina za odabrani dan.")
+            st.warning("No available time slots for selected date.")
     
     # New appointment form
     if st.session_state.selected_date and st.session_state.selected_time:
         st.markdown("---")
-        st.subheader("Zakažite novi pregled")
+        st.subheader("Schedule New Appointment")
         
         with st.form("appointment_form"):
             col1, col2 = st.columns(2)
@@ -619,22 +735,22 @@ def show_calendar():
                 patients_df = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
                 if not patients_df.empty:
                     patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients_df.iterrows()]
-                    selected_patient = st.selectbox("Odaberite pacijenta*", [""] + patient_options)
+                    selected_patient = st.selectbox("Select Patient*", [""] + patient_options)
                 else:
-                    st.warning("Nema registriranih pacijenata")
+                    st.warning("No registered patients")
                     selected_patient = ""
                 
-                st.write(f"**Odabrani termin:** {st.session_state.selected_date.strftime('%d.%m.%Y.')} {st.session_state.selected_time.strftime('%H:%M')}")
+                st.write(f"**Selected Time:** {st.session_state.selected_date.strftime('%d.%m.%Y.')} {st.session_state.selected_time.strftime('%H:%M')}")
             
             with col2:
-                duration = st.selectbox("Trajanje pregleda*", [15, 30, 45, 60, 90, 120], index=1)
-                appointment_type = st.selectbox("Vrsta pregleda*", [
-                    "Redovni pregled", "Konsultacija", "Kontrola", "Hitni pregled", 
-                    "Operacija", "Laserski tretman", "Dijagnostika", "Refrakcija"
+                duration = st.selectbox("Duration*", [15, 30, 45, 60, 90, 120], index=1)
+                appointment_type = st.selectbox("Appointment Type*", [
+                    "Routine Checkup", "Consultation", "Follow-up", "Emergency", 
+                    "Surgery", "Laser Treatment", "Diagnostics", "Refraction"
                 ])
-                notes = st.text_area("Napomene")
+                notes = st.text_area("Notes")
             
-            submit_button = st.form_submit_button("ZAKAŽI PREGLED")
+            submit_button = st.form_submit_button("SCHEDULE APPOINTMENT")
             
             if submit_button:
                 if selected_patient:
@@ -661,39 +777,39 @@ def show_calendar():
                             ''', (patient_db_id, appointment_datetime, duration, appointment_type, notes))
                             
                             conn.commit()
-                            st.success("Pregled uspješno zakazan!")
+                            st.success("Appointment successfully scheduled!")
                             
                             # Reset selection
                             st.session_state.selected_date = None
                             st.session_state.selected_time = None
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Greška pri zakazivanju: {str(e)}")
+                            st.error(f"Error scheduling appointment: {str(e)}")
                     else:
-                        st.error("Pacijent nije pronađen u bazi podataka")
+                        st.error("Patient not found in database")
                 else:
-                    st.error("Molimo odaberite pacijenta")
+                    st.error("Please select a patient")
 
-# Updated Medical Examination with Refrakcija
+# Updated Medical Examination with Refraction
 def medical_examination():
-    st.subheader("Protokol oftalmološkog pregleda")
+    st.subheader("Ophthalmology Examination Protocol")
     
-    # Odabir pacijenta
+    # Patient selection
     conn = init_db()
     patients = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
     
     if patients.empty:
-        st.warning("Nema registriranih pacijenata. Molimo prvo registrirajte pacijenta.")
+        st.warning("No registered patients. Please register a patient first.")
         return
     
     patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients.iterrows()]
-    selected_patient = st.selectbox("Odaberite pacijenta*", [""] + patient_options)
+    selected_patient = st.selectbox("Select Patient*", [""] + patient_options)
     
     if not selected_patient:
-        st.info("Odaberite pacijenta za nastavak pregleda")
+        st.info("Select a patient to continue with examination")
         return
 
-    # Session state za OphtalCAM tipke
+    # Session state for OphtalCAM buttons
     if 'tono_od_clicked' not in st.session_state:
         st.session_state.tono_od_clicked = False
     if 'tono_os_clicked' not in st.session_state:
@@ -707,179 +823,179 @@ def medical_examination():
     if 'oft_os_clicked' not in st.session_state:
         st.session_state.oft_os_clicked = False
 
-    # OphtalCAM tipke IZVAN forme
-    st.markdown("### OphtalCAM Uređaji")
+    # OphtalCAM buttons OUTSIDE form
+    st.markdown("### OphtalCAM Devices")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🔄 OPHTHALCAM TONOMETRIJA", key="tono_global", use_container_width=True):
+        if st.button("🔄 OPHTHALCAM TONOMETRY", key="tono_global", use_container_width=True):
             st.session_state.tono_od_clicked = True
             st.session_state.tono_os_clicked = True
-            st.info("Tonometrija uređaj će se aktivirati u budućoj verziji")
+            st.info("Tonometry device will be activated in future version")
     
     with col2:
-        if st.button("🔍 OPHTHALCAM BIOMIKROSKOPIJA", key="bio_global", use_container_width=True):
+        if st.button("🔍 OPHTHALCAM BIOMICROSCOPY", key="bio_global", use_container_width=True):
             st.session_state.bio_od_clicked = True
             st.session_state.bio_os_clicked = True
-            st.info("Biomikroskopija uređaj će se aktivirati u budućoj verziji")
+            st.info("Biomicroscopy device will be activated in future version")
     
     with col3:
-        if st.button("👁️ OPHTHALCAM OFTALMOSKOPIJA", key="oft_global", use_container_width=True):
+        if st.button("👁️ OPHTHALCAM OPHTHALMOSCOPY", key="oft_global", use_container_width=True):
             st.session_state.oft_od_clicked = True
             st.session_state.oft_os_clicked = True
-            st.info("Oftalmoskopija uređaj će se aktivirati u budućoj verziji")
+            st.info("Ophthalmoscopy device will be activated in future version")
 
     st.markdown("---")
 
-    # FORMA za unos podataka
+    # FORM for data entry
     with st.form("examination_form"):
-        # 1. ANAMNESA
+        # 1. ANAMNESIS
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Anamneza")
-        anamneza = st.text_area("Opis anamneze", placeholder="Unesite podatke iz anamneze...", height=100)
+        st.subheader("Anamnesis")
+        anamnesis = st.text_area("Anamnesis Description", placeholder="Enter anamnesis details...", height=100)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 2. VIZUS
+        # 2. VISUAL ACUITY
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Vizus")
+        st.subheader("Visual Acuity")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.write("**OD (Desno oko)**")
-            vizus_od_udaljenog_bez_corr_od = st.text_input("Udaljeni bez korekcije OD", placeholder="npr. 0.8", key="vizus_od_1")
-            vizus_od_udaljenog_sa_corr_od = st.text_input("Udaljeni sa korekcijom OD", placeholder="npr. 1.0", key="vizus_od_2")
-            vizus_iz_bliza_od = st.text_input("Blizu OD", placeholder="npr. 0.8", key="vizus_od_3")
+            st.write("**OD (Right Eye)**")
+            distance_vision_uncorrected_od = st.text_input("Distance Uncorrected OD", placeholder="e.g., 0.8", key="vision_od_1")
+            distance_vision_corrected_od = st.text_input("Distance Corrected OD", placeholder="e.g., 1.0", key="vision_od_2")
+            near_vision_od = st.text_input("Near Vision OD", placeholder="e.g., 0.8", key="vision_od_3")
             
         with col2:
-            st.write("**OS (Lijevo oko)**")
-            vizus_od_udaljenog_bez_corr_os = st.text_input("Udaljeni bez korekcije OS", placeholder="npr. 0.6", key="vizus_os_1")
-            vizus_od_udaljenog_sa_corr_os = st.text_input("Udaljeni sa korekcijom OS", placeholder="npr. 1.0", key="vizus_os_2")
-            vizus_iz_bliza_os = st.text_input("Blizu OS", placeholder="npr. 0.6", key="vizus_os_3")
+            st.write("**OS (Left Eye)**")
+            distance_vision_uncorrected_os = st.text_input("Distance Uncorrected OS", placeholder="e.g., 0.6", key="vision_os_1")
+            distance_vision_corrected_os = st.text_input("Distance Corrected OS", placeholder="e.g., 1.0", key="vision_os_2")
+            near_vision_os = st.text_input("Near Vision OS", placeholder="e.g., 0.6", key="vision_os_3")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 3. REFRAKCIJA
+        # 3. REFRACTION
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Refrakcija")
+        st.subheader("Refraction")
         
-        refrakcija_obavljena = st.checkbox("Refrakcija obavljena", key="refrakcija_check")
+        refraction_performed = st.checkbox("Refraction Performed", key="refraction_check")
         
-        if refrakcija_obavljena:
+        if refraction_performed:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write("**OD (Desno oko)**")
-                sfera_od = st.number_input("Sfera OD (D)", value=0.0, step=0.25, key="sfera_od")
-                cilindar_od = st.number_input("Cilindar OD (D)", value=0.0, step=0.25, key="cilindar_od")
-                os_od = st.number_input("Os OD (°)", min_value=0, max_value=180, value=0, key="os_od")
-                adicija_od = st.number_input("Adicija OD (D)", value=0.0, step=0.25, key="adicija_od")
+                st.write("**OD (Right Eye)**")
+                sphere_od = st.number_input("Sphere OD (D)", value=0.0, step=0.25, key="sphere_od")
+                cylinder_od = st.number_input("Cylinder OD (D)", value=0.0, step=0.25, key="cylinder_od")
+                axis_od = st.number_input("Axis OD (°)", min_value=0, max_value=180, value=0, key="axis_od")
+                addition_od = st.number_input("Addition OD (D)", value=0.0, step=0.25, key="addition_od")
                 pd_od = st.number_input("PD OD (mm)", value=0.0, step=0.5, key="pd_od")
             
             with col2:
-                st.write("**OS (Lijevo oko)**")
-                sfera_os = st.number_input("Sfera OS (D)", value=0.0, step=0.25, key="sfera_os")
-                cilindar_os = st.number_input("Cilindar OS (D)", value=0.0, step=0.25, key="cilindar_os")
-                os_os = st.number_input("Os OS (°)", min_value=0, max_value=180, value=0, key="os_os")
-                adicija_os = st.number_input("Adicija OS (D)", value=0.0, step=0.25, key="adicija_os")
+                st.write("**OS (Left Eye)**")
+                sphere_os = st.number_input("Sphere OS (D)", value=0.0, step=0.25, key="sphere_os")
+                cylinder_os = st.number_input("Cylinder OS (D)", value=0.0, step=0.25, key="cylinder_os")
+                axis_os = st.number_input("Axis OS (°)", min_value=0, max_value=180, value=0, key="axis_os")
+                addition_os = st.number_input("Addition OS (D)", value=0.0, step=0.25, key="addition_os")
                 pd_os = st.number_input("PD OS (mm)", value=0.0, step=0.5, key="pd_os")
             
-            tip_refrakcije = st.selectbox("Tip refrakcije", [
-                "Subjektivna", "Objektivna", "Autorefraktometar", "Cikloplegijska"
-            ], key="tip_refrakcije")
+            refraction_type = st.selectbox("Refraction Type", [
+                "Subjective", "Objective", "Autorefractor", "Cycloplegic"
+            ], key="refraction_type")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 4. TONOMETRIJA
+        # 4. TONOMETRY
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Tonometrija")
+        st.subheader("Tonometry")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.write("**OD (Desno oko)**")
+            st.write("**OD (Right Eye)**")
             if st.session_state.tono_od_clicked:
-                st.success("✅ Tonometrija OD - uređaj aktiviran")
-            tonometrija_od = st.text_input("Vrijednost OD (mmHg)", placeholder="npr. 16", key="tono_od")
+                st.success("✅ Tonometry OD - device activated")
+            tonometry_od = st.text_input("Value OD (mmHg)", placeholder="e.g., 16", key="tono_od")
             
         with col2:
-            st.write("**OS (Lijevo oko)**")
+            st.write("**OS (Left Eye)**")
             if st.session_state.tono_os_clicked:
-                st.success("✅ Tonometrija OS - uređaj aktiviran")
-            tonometrija_os = st.text_input("Vrijednost OS (mmHg)", placeholder="npr. 17", key="tono_os")
+                st.success("✅ Tonometry OS - device activated")
+            tonometry_os = st.text_input("Value OS (mmHg)", placeholder="e.g., 17", key="tono_os")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 5. BIOMIKROSKOPIJA
+        # 5. BIOMICROSCOPY
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Biomikroskopija")
+        st.subheader("Biomicroscopy")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.write("**OD (Desno oko)**")
+            st.write("**OD (Right Eye)**")
             if st.session_state.bio_od_clicked:
-                st.success("✅ Biomikroskopija OD - uređaj aktiviran")
-            biomikroskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz biomikroskopije za desno oko...", height=100, key="bio_od")
+                st.success("✅ Biomicroscopy OD - device activated")
+            biomicroscopy_od = st.text_area("Findings OD", placeholder="Enter biomicroscopy findings for right eye...", height=100, key="bio_od")
             
         with col2:
-            st.write("**OS (Lijevo oko)**")
+            st.write("**OS (Left Eye)**")
             if st.session_state.bio_os_clicked:
-                st.success("✅ Biomikroskopija OS - uređaj aktiviran")
-            biomikroskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz biomikroskopije za lijevo oko...", height=100, key="bio_os")
+                st.success("✅ Biomicroscopy OS - device activated")
+            biomicroscopy_os = st.text_area("Findings OS", placeholder="Enter biomicroscopy findings for left eye...", height=100, key="bio_os")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 6. OFTALMOSKOPIJA
+        # 6. OPHTHALMOSCOPY
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Oftalmoskopija")
+        st.subheader("Ophthalmoscopy")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.write("**OD (Desno oko)**")
+            st.write("**OD (Right Eye)**")
             if st.session_state.oft_od_clicked:
-                st.success("✅ Oftalmoskopija OD - uređaj aktiviran")
-            oftalmoskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz oftalmoskopije za desno oko...", height=100, key="oft_od")
+                st.success("✅ Ophthalmoscopy OD - device activated")
+            ophthalmoscopy_od = st.text_area("Findings OD", placeholder="Enter ophthalmoscopy findings for right eye...", height=100, key="oft_od")
             
         with col2:
-            st.write("**OS (Lijevo oko)**")
+            st.write("**OS (Left Eye)**")
             if st.session_state.oft_os_clicked:
-                st.success("✅ Oftalmoskopija OS - uređaj aktiviran")
-            oftalmoskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz oftalmoskopije za lijevo oko...", height=100, key="oft_os")
+                st.success("✅ Ophthalmoscopy OS - device activated")
+            ophthalmoscopy_os = st.text_area("Findings OS", placeholder="Enter ophthalmoscopy findings for left eye...", height=100, key="oft_os")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 7. DJIAGNOZA I TRETMAN
+        # 7. DIAGNOSIS AND TREATMENT
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Dijagnoza i tretman")
+        st.subheader("Diagnosis and Treatment")
         
-        dijagnoza = st.text_area("Dijagnoza", placeholder="Unesite dijagnozu...", height=80, key="dijagnoza")
-        tretman = st.text_area("Preporučeni tretman", placeholder="Unesite preporučeni tretman...", height=80, key="tretman")
+        diagnosis = st.text_area("Diagnosis", placeholder="Enter diagnosis...", height=80, key="diagnosis")
+        treatment = st.text_area("Recommended Treatment", placeholder="Enter recommended treatment...", height=80, key="treatment")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # DODATNA POLJA ZA ANALITIKU
+        # ADDITIONAL FIELDS FOR ANALYTICS
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Dodatni podaci za statistiku")
+        st.subheader("Additional Data for Statistics")
         
-        kontaktne_lece_prepisane = st.checkbox("Kontaktne leće prepisane", key="kontaktne_lece")
-        tip_kontaktnih_leca = ""
-        if kontaktne_lece_prepisane:
-            tip_kontaktnih_leca = st.selectbox("Tip kontaktnih leća", [
-                "Mekane dnevne", "Mekane mjesečne", "Mekane godišnje",
-                "Rigidne gas permeable", "Scleralne", "Terapijske",
-                "Kosmetičke", "Kustomizirane"
-            ], key="tip_leca")
+        contact_lens_prescribed = st.checkbox("Contact Lenses Prescribed", key="contact_lens")
+        contact_lens_type = ""
+        if contact_lens_prescribed:
+            contact_lens_type = st.selectbox("Contact Lens Type", [
+                "Soft Daily", "Soft Monthly", "Soft Yearly",
+                "Rigid Gas Permeable", "Scleral", "Therapeutic",
+                "Cosmetic", "Custom"
+            ], key="lens_type")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
         # SUBMIT BUTTON
         col1, col2 = st.columns(2)
         with col1:
-            submit_button = st.form_submit_button("💾 SPREMI PROTOKOL PREGLEDA", use_container_width=True)
+            submit_button = st.form_submit_button("💾 SAVE EXAMINATION PROTOCOL", use_container_width=True)
         with col2:
-            generate_report = st.form_submit_button("📄 GENERIRAJ NALAZ", use_container_width=True)
+            generate_report = st.form_submit_button("📄 GENERATE REPORT", use_container_width=True)
         
         if submit_button or generate_report:
             # Save to database
@@ -897,40 +1013,40 @@ def medical_examination():
                     # Prepare data for insertion
                     examination_data = {
                         'patient_id': patient_db_id,
-                        'anamneza': anamneza,
-                        'vizus_od_udaljenog_bez_corr_od': vizus_od_udaljenog_bez_corr_od,
-                        'vizus_od_udaljenog_bez_corr_os': vizus_od_udaljenog_bez_corr_os,
-                        'vizus_od_udaljenog_sa_corr_od': vizus_od_udaljenog_sa_corr_od,
-                        'vizus_od_udaljenog_sa_corr_os': vizus_od_udaljenog_sa_corr_os,
-                        'vizus_iz_bliza_od': vizus_iz_bliza_od,
-                        'vizus_iz_bliza_os': vizus_iz_bliza_os,
-                        'tonometrija_od': tonometrija_od,
-                        'tonometrija_os': tonometrija_os,
-                        'biomikroskopija_od': biomikroskopija_od,
-                        'biomikroskopija_os': biomikroskopija_os,
-                        'oftalmoskopija_od': oftalmoskopija_od,
-                        'oftalmoskopija_os': oftalmoskopija_os,
-                        'dijagnoza': dijagnoza,
-                        'tretman': tretman,
-                        'refrakcija_obavljena': refrakcija_obavljena,
-                        'kontaktne_lece_prepisane': kontaktne_lece_prepisane,
-                        'tip_kontaktnih_leca': tip_kontaktnih_leca
+                        'anamnesis': anamnesis,
+                        'distance_vision_uncorrected_od': distance_vision_uncorrected_od,
+                        'distance_vision_uncorrected_os': distance_vision_uncorrected_os,
+                        'distance_vision_corrected_od': distance_vision_corrected_od,
+                        'distance_vision_corrected_os': distance_vision_corrected_os,
+                        'near_vision_od': near_vision_od,
+                        'near_vision_os': near_vision_os,
+                        'tonometry_od': tonometry_od,
+                        'tonometry_os': tonometry_os,
+                        'biomicroscopy_od': biomicroscopy_od,
+                        'biomicroscopy_os': biomicroscopy_os,
+                        'ophthalmoscopy_od': ophthalmoscopy_od,
+                        'ophthalmoscopy_os': ophthalmoscopy_os,
+                        'diagnosis': diagnosis,
+                        'treatment': treatment,
+                        'refraction_performed': refraction_performed,
+                        'contact_lens_prescribed': contact_lens_prescribed,
+                        'contact_lens_type': contact_lens_type
                     }
                     
-                    # Add refrakcija data if available
-                    if refrakcija_obavljena:
+                    # Add refraction data if available
+                    if refraction_performed:
                         examination_data.update({
-                            'sfera_od': sfera_od,
-                            'cilindar_od': cilindar_od,
-                            'os_od': os_od,
-                            'adicija_od': adicija_od,
+                            'sphere_od': sphere_od,
+                            'cylinder_od': cylinder_od,
+                            'axis_od': axis_od,
+                            'addition_od': addition_od,
                             'pd_od': pd_od,
-                            'sfera_os': sfera_os,
-                            'cilindar_os': cilindar_os,
-                            'os_os': os_os,
-                            'adicija_os': adicija_os,
+                            'sphere_os': sphere_os,
+                            'cylinder_os': cylinder_os,
+                            'axis_os': axis_os,
+                            'addition_os': addition_os,
                             'pd_os': pd_os,
-                            'tip_refrakcije': tip_refrakcije
+                            'refraction_type': refraction_type
                         })
                     
                     # Insert into database
@@ -954,7 +1070,7 @@ def medical_examination():
                     st.session_state.oft_os_clicked = False
                     
                     if submit_button:
-                        st.success("✅ Protokol pregleda uspješno spremljen!")
+                        st.success("✅ Examination protocol successfully saved!")
                         st.balloons()
                     
                     if generate_report:
@@ -967,50 +1083,278 @@ def medical_examination():
                         examination_data['visit_date'] = datetime.now().strftime('%d.%m.%Y.')
                         pdf_buffer = generate_pdf_report(patient_data, examination_data)
                         
-                        st.success("✅ Nalaz uspješno generiran!")
+                        st.success("✅ Report successfully generated!")
                         st.download_button(
-                            label="📥 Preuzmi PDF nalaz",
+                            label="📥 Download PDF Report",
                             data=pdf_buffer,
-                            file_name=f"nalaz_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.pdf",
                             mime="application/pdf"
                         )
                     
                 except Exception as e:
-                    st.error(f"❌ Greška pri spremanju: {str(e)}")
+                    st.error(f"❌ Error saving: {str(e)}")
             else:
-                st.error("❌ Pacijent nije pronađen u bazi podataka")
+                st.error("❌ Patient not found in database")
 
-# [OSTALE FUNKCIJE OSTAJU ISTE - show_analytics, examination_protocol, main]
-
-# Ovdje dodajte ostale funkcije koje su bile u prethodnom kodu
-# (show_analytics, patient_registration, patient_search, show_dashboard, examination_protocol, main)
-
-# Potrebno je dodati i ostale funkcije koje nedostaju iz prethodnog koda
-# Zbog ograničenog prostora, ovdje ću dodati samo placeholder za ostale funkcije
-
-def show_analytics():
-    # Implementacija analitike ostaje ista kao u prethodnom kodu
-    pass
-
+# Patient Registration
 def patient_registration():
-    # Implementacija registracije pacijenata ostaje ista
-    pass
+    st.subheader("Patient Registration")
+    
+    with st.form("patient_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            first_name = st.text_input("First Name*")
+            last_name = st.text_input("Last Name*")
+            date_of_birth = st.date_input("Date of Birth*", max_value=datetime.now().date())
+            gender = st.selectbox("Gender*", ["", "Male", "Female", "Other"])
+        
+        with col2:
+            phone = st.text_input("Phone")
+            email = st.text_input("Email")
+            address = st.text_area("Address")
+        
+        submit_button = st.form_submit_button("Register Patient")
+        
+        if submit_button:
+            if first_name and last_name and date_of_birth and gender:
+                conn = init_db()
+                c = conn.cursor()
+                
+                # Generate patient ID
+                patient_id = f"PT{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                try:
+                    c.execute('''
+                        INSERT INTO patients 
+                        (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address))
+                    
+                    conn.commit()
+                    st.success(f"Patient successfully registered! Patient ID: {patient_id}")
+                except Exception as e:
+                    st.error(f"Error registering patient: {str(e)}")
+            else:
+                st.error("Please fill all required fields (marked with *)")
 
+# Patient Search
 def patient_search():
-    # Implementacija pretrage pacijenata ostaje ista
-    pass
+    st.subheader("Patient Search and Records Review")
+    
+    conn = init_db()
+    
+    search_term = st.text_input("Search patients (name or ID)")
+    
+    if search_term:
+        patients = pd.read_sql(
+            """SELECT * FROM patients 
+               WHERE first_name LIKE ? OR last_name LIKE ? OR patient_id LIKE ?""", 
+            conn, params=(f"%{search_term}%", f"%{search_term}%", f"%{search_term}%")
+        )
+        
+        if not patients.empty:
+            st.dataframe(patients)
+            
+            # Show medical history for selected patient
+            selected_patient_id = st.selectbox("Select patient for details", 
+                                             patients['patient_id'].tolist())
+            
+            if selected_patient_id:
+                medical_history = pd.read_sql(
+                    """SELECT * FROM medical_examinations me
+                       JOIN patients p ON me.patient_id = p.id
+                       WHERE p.patient_id = ?""", 
+                    conn, params=(selected_patient_id,)
+                )
+                
+                if not medical_history.empty:
+                    st.subheader("Examination History")
+                    st.dataframe(medical_history)
+                else:
+                    st.info("No examination records found for this patient")
+        else:
+            st.info("No patients found matching search criteria")
 
+# Analytics Dashboard
+def show_analytics():
+    st.subheader("Examination Analytics")
+    
+    conn = init_db()
+    
+    # Date range selector
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("Start Date", datetime.now().replace(day=1))
+    with col2:
+        end_date = st.date_input("End Date", datetime.now())
+    
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_patients = pd.read_sql("SELECT COUNT(*) as count FROM patients", conn).iloc[0]['count']
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3 style='margin: 0; color: #1f77b4;'>{total_patients}</h3>
+            <p style='margin: 0;'>Total Patients</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        total_examinations = pd.read_sql("SELECT COUNT(*) as count FROM medical_examinations", conn).iloc[0]['count']
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3 style='margin: 0; color: #1f77b4;'>{total_examinations}</h3>
+            <p style='margin: 0;'>Total Examinations</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        refractions_count = pd.read_sql(
+            "SELECT COUNT(*) as count FROM medical_examinations WHERE refraction_performed = 1", 
+            conn
+        ).iloc[0]['count']
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3 style='margin: 0; color: #1f77b4;'>{refractions_count}</h3>
+            <p style='margin: 0;'>Refractions Performed</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        contact_lens_count = pd.read_sql(
+            "SELECT COUNT(*) as count FROM medical_examinations WHERE contact_lens_prescribed = 1", 
+            conn
+        ).iloc[0]['count']
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3 style='margin: 0; color: #1f77b4;'>{contact_lens_count}</h3>
+            <p style='margin: 0;'>Contact Lenses Prescribed</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Dashboard
 def show_dashboard():
-    # Implementacija dashboarda ostaje ista
-    pass
+    st.subheader("Clinical Dashboard")
+    
+    # Quick stats
+    conn = init_db()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        today = datetime.now().date()
+        today_appointments = pd.read_sql(
+            "SELECT COUNT(*) as count FROM appointments WHERE DATE(appointment_date) = ?", 
+            conn, params=(today,)
+        ).iloc[0]['count']
+        st.metric("Today's Appointments", today_appointments)
+    
+    with col2:
+        total_patients = pd.read_sql("SELECT COUNT(*) as count FROM patients", conn).iloc[0]['count']
+        st.metric("Patients in System", total_patients)
+    
+    with col3:
+        upcoming_appointments = pd.read_sql(
+            "SELECT COUNT(*) as count FROM appointments WHERE DATE(appointment_date) >= ?", 
+            conn, params=(today,)
+        ).iloc[0]['count']
+        st.metric("Scheduled Appointments", upcoming_appointments)
+    
+    with col4:
+        monthly_exams = pd.read_sql(
+            "SELECT COUNT(*) as count FROM medical_examinations WHERE strftime('%Y-%m', visit_date) = strftime('%Y-%m', 'now')", 
+            conn
+        ).iloc[0]['count']
+        st.metric("Exams This Month", monthly_exams)
+    
+    # Quick links
+    st.subheader("Quick Access")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("New Examination Protocol", use_container_width=True):
+            st.session_state.current_page = "Examination Protocol"
+    
+    with col2:
+        if st.button("Appointment Calendar", use_container_width=True):
+            st.session_state.current_page = "Calendar"
+    
+    with col3:
+        if st.button("Analytics", use_container_width=True):
+            st.session_state.current_page = "Analytics"
 
+# Main navigation
 def examination_protocol():
-    # Implementacija navigacije ostaje ista
-    pass
+    st.sidebar.title("OphtalCAM Navigation")
+    menu = st.sidebar.selectbox("Menu", [
+        "Dashboard",
+        "Patient Registration", 
+        "Examination Protocol",
+        "Calendar",
+        "Working Hours",
+        "Patient Search",
+        "Analytics"
+    ])
+    
+    if menu == "Dashboard":
+        show_dashboard()
+    elif menu == "Patient Registration":
+        patient_registration()
+    elif menu == "Examination Protocol":
+        medical_examination()
+    elif menu == "Calendar":
+        show_calendar()
+    elif menu == "Working Hours":
+        manage_working_hours()
+    elif menu == "Patient Search":
+        patient_search()
+    elif menu == "Analytics":
+        show_analytics()
 
+# Main application flow
 def main():
-    # Implementacija glavne aplikacije ostaje ista
-    pass
+    load_css()
+    
+    # Initialize session state
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+    if 'username' not in st.session_state:
+        st.session_state.username = None
+    if 'role' not in st.session_state:
+        st.session_state.role = None
+    
+    # Check login status
+    if not st.session_state.logged_in:
+        login_page()
+    else:
+        # Header with logos for main app
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=300)
+        
+        with col2:
+            st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=150)
+        
+        # Logout button
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col3:
+            if st.button("Logout"):
+                st.session_state.logged_in = False
+                st.session_state.username = None
+                st.session_state.role = None
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Show user info
+        st.sidebar.markdown(f"**Logged in as:** {st.session_state.username}")
+        st.sidebar.markdown(f"**Role:** {st.session_state.role}")
+        
+        # Show examination protocol
+        examination_protocol()
 
 if __name__ == "__main__":
     main()
