@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import calendar
 import io
 import base64
+import csv
 
 # Page configuration
 st.set_page_config(
@@ -66,7 +67,7 @@ def init_db():
         )
     ''')
     
-    # Medical examinations table
+    # Medical examinations table - simplified structure
     c.execute('''
         CREATE TABLE IF NOT EXISTS medical_examinations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,8 +80,6 @@ def init_db():
             distance_vision_corrected_os TEXT,
             near_vision_od TEXT,
             near_vision_os TEXT,
-            
-            # REFRACTION - Added fields
             sphere_od REAL,
             cylinder_od REAL,
             axis_od INTEGER,
@@ -92,7 +91,6 @@ def init_db():
             pd_od REAL,
             pd_os REAL,
             refraction_type TEXT,
-            
             tonometry_od TEXT,
             tonometry_os TEXT,
             biomicroscopy_od TEXT,
@@ -112,7 +110,7 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS working_hours (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            day_of_week INTEGER, -- 0=Monday, 6=Sunday
+            day_of_week INTEGER,
             start_time TIME,
             end_time TIME,
             is_working_day BOOLEAN DEFAULT 1
@@ -133,15 +131,15 @@ def init_db():
     c.execute("INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?, ?, ?)", 
               ("admin", admin_hash, "admin"))
     
-    # Insert default working hours (Mon-Fri 8:00-20:00)
+    # Insert default working hours
     default_hours = [
-        (0, '08:00', '20:00', 1), # Monday
-        (1, '08:00', '20:00', 1), # Tuesday
-        (2, '08:00', '20:00', 1), # Wednesday
-        (3, '08:00', '20:00', 1), # Thursday
-        (4, '08:00', '20:00', 1), # Friday
-        (5, '08:00', '20:00', 1), # Saturday
-        (6, '08:00', '20:00', 1)  # Sunday
+        (0, '08:00', '20:00', 1),
+        (1, '08:00', '20:00', 1),
+        (2, '08:00', '20:00', 1),
+        (3, '08:00', '20:00', 1),
+        (4, '08:00', '20:00', 1),
+        (5, '08:00', '20:00', 1),
+        (6, '08:00', '20:00', 1)
     ]
     
     for day_data in default_hours:
@@ -282,9 +280,9 @@ def generate_html_report(patient_data, examination_data):
             <h4>Visual Acuity</h4>
             <table>
                 <tr><th></th><th>OD (Right)</th><th>OS (Left)</th></tr>
-                <tr><th>Distance Uncorrected</th><td>{examination_data['distance_vision_uncorrected_od'] or '-'}</td><td>{examination_data['distance_vision_uncorrected_os'] or '-'}</td></tr>
-                <tr><th>Distance Corrected</th><td>{examination_data['distance_vision_corrected_od'] or '-'}</td><td>{examination_data['distance_vision_corrected_os'] or '-'}</td></tr>
-                <tr><th>Near Vision</th><td>{examination_data['near_vision_od'] or '-'}</td><td>{examination_data['near_vision_os'] or '-'}</td></tr>
+                <tr><th>Distance Uncorrected</th><td>{examination_data.get('distance_vision_uncorrected_od', '-')}</td><td>{examination_data.get('distance_vision_uncorrected_os', '-')}</td></tr>
+                <tr><th>Distance Corrected</th><td>{examination_data.get('distance_vision_corrected_od', '-')}</td><td>{examination_data.get('distance_vision_corrected_os', '-')}</td></tr>
+                <tr><th>Near Vision</th><td>{examination_data.get('near_vision_od', '-')}</td><td>{examination_data.get('near_vision_os', '-')}</td></tr>
             </table>
     """
     
@@ -294,43 +292,43 @@ def generate_html_report(patient_data, examination_data):
             <h4>Refraction</h4>
             <table>
                 <tr><th></th><th>OD (Right)</th><th>OS (Left)</th></tr>
-                <tr><th>Sphere</th><td>{examination_data['sphere_od'] or '-'} D</td><td>{examination_data['sphere_os'] or '-'} D</td></tr>
-                <tr><th>Cylinder</th><td>{examination_data['cylinder_od'] or '-'} D</td><td>{examination_data['cylinder_os'] or '-'} D</td></tr>
-                <tr><th>Axis</th><td>{examination_data['axis_od'] or '-'}°</td><td>{examination_data['axis_os'] or '-'}°</td></tr>
-                <tr><th>Addition</th><td>{examination_data['addition_od'] or '-'} D</td><td>{examination_data['addition_os'] or '-'} D</td></tr>
-                <tr><th>PD</th><td>{examination_data['pd_od'] or '-'} mm</td><td>{examination_data['pd_os'] or '-'} mm</td></tr>
+                <tr><th>Sphere</th><td>{examination_data.get('sphere_od', '-')} D</td><td>{examination_data.get('sphere_os', '-')} D</td></tr>
+                <tr><th>Cylinder</th><td>{examination_data.get('cylinder_od', '-')} D</td><td>{examination_data.get('cylinder_os', '-')} D</td></tr>
+                <tr><th>Axis</th><td>{examination_data.get('axis_od', '-')}°</td><td>{examination_data.get('axis_os', '-')}°</td></tr>
+                <tr><th>Addition</th><td>{examination_data.get('addition_od', '-')} D</td><td>{examination_data.get('addition_os', '-')} D</td></tr>
+                <tr><th>PD</th><td>{examination_data.get('pd_od', '-')} mm</td><td>{examination_data.get('pd_os', '-')} mm</td></tr>
             </table>
         """
     
     html_content += f"""
             <h4>Tonometry</h4>
             <table>
-                <tr><th>OD (Right):</th><td>{examination_data['tonometry_od'] or '-'} mmHg</td></tr>
-                <tr><th>OS (Left):</th><td>{examination_data['tonometry_os'] or '-'} mmHg</td></tr>
+                <tr><th>OD (Right):</th><td>{examination_data.get('tonometry_od', '-')} mmHg</td></tr>
+                <tr><th>OS (Left):</th><td>{examination_data.get('tonometry_os', '-')} mmHg</td></tr>
             </table>
         </div>
     """
     
     # Add diagnosis and treatment if available
-    if examination_data['diagnosis']:
+    if examination_data.get('diagnosis'):
         html_content += f"""
         <div class="section">
             <h3 class="section-title">Diagnosis</h3>
-            <p>{examination_data['diagnosis']}</p>
+            <p>{examination_data.get('diagnosis', '')}</p>
         </div>
         """
     
-    if examination_data['treatment']:
+    if examination_data.get('treatment'):
         html_content += f"""
         <div class="section">
             <h3 class="section-title">Recommended Treatment</h3>
-            <p>{examination_data['treatment']}</p>
+            <p>{examination_data.get('treatment', '')}</p>
         </div>
         """
     
     html_content += f"""
         <div class="footer">
-            <p><strong>Examination Date:</strong> {examination_data['visit_date']}</p>
+            <p><strong>Examination Date:</strong> {examination_data.get('visit_date', '')}</p>
             <p><strong>Physician:</strong> ___________________</p>
         </div>
     </body>
@@ -341,9 +339,6 @@ def generate_html_report(patient_data, examination_data):
 
 def generate_csv_report(patient_data, examination_data):
     """Generate CSV report for patient"""
-    import csv
-    import io
-    
     output = io.StringIO()
     writer = csv.writer(output)
     
@@ -363,40 +358,40 @@ def generate_csv_report(patient_data, examination_data):
     # Examination Results
     writer.writerow(["EXAMINATION RESULTS"])
     writer.writerow(["VISUAL ACUITY", "OD (Right)", "OS (Left)"])
-    writer.writerow(["Distance Uncorrected", examination_data['distance_vision_uncorrected_od'] or '-', examination_data['distance_vision_uncorrected_os'] or '-'])
-    writer.writerow(["Distance Corrected", examination_data['distance_vision_corrected_od'] or '-', examination_data['distance_vision_corrected_os'] or '-'])
-    writer.writerow(["Near Vision", examination_data['near_vision_od'] or '-', examination_data['near_vision_os'] or '-'])
+    writer.writerow(["Distance Uncorrected", examination_data.get('distance_vision_uncorrected_od', '-'), examination_data.get('distance_vision_uncorrected_os', '-')])
+    writer.writerow(["Distance Corrected", examination_data.get('distance_vision_corrected_od', '-'), examination_data.get('distance_vision_corrected_os', '-')])
+    writer.writerow(["Near Vision", examination_data.get('near_vision_od', '-'), examination_data.get('near_vision_os', '-')])
     writer.writerow([])
     
     # Refraction if available
     if examination_data.get('refraction_performed'):
         writer.writerow(["REFRACTION", "OD (Right)", "OS (Left)"])
-        writer.writerow(["Sphere", f"{examination_data['sphere_od'] or '-'} D", f"{examination_data['sphere_os'] or '-'} D"])
-        writer.writerow(["Cylinder", f"{examination_data['cylinder_od'] or '-'} D", f"{examination_data['cylinder_os'] or '-'} D"])
-        writer.writerow(["Axis", f"{examination_data['axis_od'] or '-'}°", f"{examination_data['axis_os'] or '-'}°"])
-        writer.writerow(["Addition", f"{examination_data['addition_od'] or '-'} D", f"{examination_data['addition_os'] or '-'} D"])
-        writer.writerow(["PD", f"{examination_data['pd_od'] or '-'} mm", f"{examination_data['pd_os'] or '-'} mm"])
+        writer.writerow(["Sphere", f"{examination_data.get('sphere_od', '-')} D", f"{examination_data.get('sphere_os', '-')} D"])
+        writer.writerow(["Cylinder", f"{examination_data.get('cylinder_od', '-')} D", f"{examination_data.get('cylinder_os', '-')} D"])
+        writer.writerow(["Axis", f"{examination_data.get('axis_od', '-')}°", f"{examination_data.get('axis_os', '-')}°"])
+        writer.writerow(["Addition", f"{examination_data.get('addition_od', '-')} D", f"{examination_data.get('addition_os', '-')} D"])
+        writer.writerow(["PD", f"{examination_data.get('pd_od', '-')} mm", f"{examination_data.get('pd_os', '-')} mm"])
         writer.writerow([])
     
     # Tonometry
     writer.writerow(["TONOMETRY"])
-    writer.writerow(["OD (Right):", f"{examination_data['tonometry_od'] or '-'} mmHg"])
-    writer.writerow(["OS (Left):", f"{examination_data['tonometry_os'] or '-'} mmHg"])
+    writer.writerow(["OD (Right):", f"{examination_data.get('tonometry_od', '-')} mmHg"])
+    writer.writerow(["OS (Left):", f"{examination_data.get('tonometry_os', '-')} mmHg"])
     writer.writerow([])
     
     # Diagnosis and Treatment
-    if examination_data['diagnosis']:
+    if examination_data.get('diagnosis'):
         writer.writerow(["DIAGNOSIS"])
-        writer.writerow([examination_data['diagnosis']])
+        writer.writerow([examination_data.get('diagnosis', '')])
         writer.writerow([])
     
-    if examination_data['treatment']:
+    if examination_data.get('treatment'):
         writer.writerow(["RECOMMENDED TREATMENT"])
-        writer.writerow([examination_data['treatment']])
+        writer.writerow([examination_data.get('treatment', '')])
         writer.writerow([])
     
     # Footer
-    writer.writerow([f"Examination Date: {examination_data['visit_date']}"])
+    writer.writerow([f"Examination Date: {examination_data.get('visit_date', '')}"])
     writer.writerow(["Physician: ___________________"])
     
     return output.getvalue()
@@ -537,10 +532,8 @@ def manage_working_hours():
     working_hours = pd.read_sql("SELECT * FROM working_hours ORDER BY day_of_week", conn)
     
     if not working_hours.empty:
-        # Map day numbers to names
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         working_hours['day_name'] = working_hours['day_of_week'].apply(lambda x: day_names[x])
-        
         st.dataframe(working_hours[['day_name', 'start_time', 'end_time', 'is_working_day']])
     
     # Update working hours
@@ -575,53 +568,16 @@ def manage_working_hours():
                     INSERT OR REPLACE INTO working_hours (day_of_week, start_time, end_time, is_working_day)
                     VALUES (?, ?, ?, ?)
                 ''', (day_num, start_time.strftime('%H:%M'), end_time.strftime('%H:%M'), is_working_day))
-                
                 conn.commit()
                 st.success(f"Working hours updated for {day_of_week[1]}!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error updating working hours: {str(e)}")
-    
-    # Holiday management
-    st.write("### Manage Holidays")
-    
-    with st.form("holiday_form"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            holiday_date = st.date_input("Holiday Date", min_value=datetime.now().date())
-        
-        with col2:
-            description = st.text_input("Description", placeholder="e.g., Christmas Day")
-        
-        add_holiday = st.form_submit_button("Add Holiday")
-        
-        if add_holiday:
-            c = conn.cursor()
-            
-            try:
-                c.execute('''
-                    INSERT OR IGNORE INTO holidays (holiday_date, description)
-                    VALUES (?, ?)
-                ''', (holiday_date, description))
-                
-                conn.commit()
-                st.success(f"Holiday added: {holiday_date}")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error adding holiday: {str(e)}")
-    
-    # Display current holidays
-    holidays = pd.read_sql("SELECT * FROM holidays ORDER BY holiday_date", conn)
-    if not holidays.empty:
-        st.write("### Current Holidays")
-        st.dataframe(holidays)
 
 # Updated Calendar with time slots
 def show_calendar():
     st.subheader("Appointment Calendar")
     
-    # Initialize session state for calendar if not exists
     if 'current_month' not in st.session_state:
         st.session_state.current_month = datetime.now().month
         st.session_state.current_year = datetime.now().year
@@ -689,7 +645,6 @@ def show_calendar():
                 if day != 0:
                     current_date = datetime(st.session_state.current_year, st.session_state.current_month, day).date()
                     
-                    # Check if working day
                     available_slots = get_available_time_slots(current_date)
                     is_working_day = len(available_slots) > 0
                     
@@ -697,7 +652,6 @@ def show_calendar():
                         pd.to_datetime(appointments['appointment_date']).dt.date == current_date
                     ]
                     
-                    # Day styling
                     day_class = "calendar-day"
                     if current_date == today:
                         day_class += " today"
@@ -709,19 +663,16 @@ def show_calendar():
                     st.markdown(f'<div class="{day_class}">', unsafe_allow_html=True)
                     st.write(f"**{day}**")
                     
-                    # Show appointments for the day
                     for _, appt in day_appointments.iterrows():
                         appt_time = pd.to_datetime(appt['appointment_date']).strftime('%H:%M')
                         patient_name = f"{appt['first_name']} {appt['last_name'][0]}."
                         st.markdown(f'<div class="appointment-badge" title="{appt["type"]}">{appt_time} {patient_name}</div>', unsafe_allow_html=True)
                     
-                    # Show day status
                     if not is_working_day:
                         st.markdown('<div style="color: #999; font-size: 0.8em;">Non-working</div>', unsafe_allow_html=True)
                     
                     st.markdown('</div>', unsafe_allow_html=True)
                     
-                    # Date selection
                     if is_working_day and st.button("Select", key=f"select_{day}", use_container_width=True):
                         st.session_state.selected_date = current_date
                         st.rerun()
@@ -736,7 +687,6 @@ def show_calendar():
         available_slots = get_available_time_slots(st.session_state.selected_date)
         
         if available_slots:
-            # Display time slots in a grid
             cols = st.columns(6)
             for i, slot in enumerate(available_slots):
                 col_idx = i % 6
@@ -756,7 +706,6 @@ def show_calendar():
             col1, col2 = st.columns(2)
             
             with col1:
-                # Patient selection
                 patients_df = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
                 if not patients_df.empty:
                     patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients_df.iterrows()]
@@ -780,18 +729,13 @@ def show_calendar():
             if submit_button:
                 if selected_patient:
                     c = conn.cursor()
-                    
-                    # Extract patient ID
                     patient_id_str = selected_patient.split(" - ")[0]
                     
-                    # Get patient database ID
                     c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id_str,))
                     result = c.fetchone()
                     
                     if result:
                         patient_db_id = result[0]
-                        
-                        # Combine date and time
                         appointment_datetime = datetime.combine(st.session_state.selected_date, st.session_state.selected_time)
                         
                         try:
@@ -800,11 +744,8 @@ def show_calendar():
                                 (patient_id, appointment_date, duration_minutes, type, notes)
                                 VALUES (?, ?, ?, ?, ?)
                             ''', (patient_db_id, appointment_datetime, duration, appointment_type, notes))
-                            
                             conn.commit()
                             st.success("Appointment successfully scheduled!")
-                            
-                            # Reset selection
                             st.session_state.selected_date = None
                             st.session_state.selected_time = None
                             st.rerun()
@@ -819,7 +760,6 @@ def show_calendar():
 def medical_examination():
     st.subheader("Ophthalmology Examination Protocol")
     
-    # Patient selection
     conn = init_db()
     patients = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
     
@@ -834,7 +774,7 @@ def medical_examination():
         st.info("Select a patient to continue with examination")
         return
 
-    # Session state for OphtalCAM buttons
+    # Initialize session state
     if 'tono_od_clicked' not in st.session_state:
         st.session_state.tono_od_clicked = False
     if 'tono_os_clicked' not in st.session_state:
@@ -848,7 +788,7 @@ def medical_examination():
     if 'oft_os_clicked' not in st.session_state:
         st.session_state.oft_os_clicked = False
 
-    # OphtalCAM buttons OUTSIDE form
+    # OphtalCAM buttons
     st.markdown("### OphtalCAM Devices")
     col1, col2, col3 = st.columns(3)
     
@@ -872,15 +812,15 @@ def medical_examination():
 
     st.markdown("---")
 
-    # FORM for data entry
+    # Examination form
     with st.form("examination_form"):
-        # 1. ANAMNESIS
+        # Anamnesis
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
         st.subheader("Anamnesis")
         anamnesis = st.text_area("Anamnesis Description", placeholder="Enter anamnesis details...", height=100)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 2. VISUAL ACUITY
+        # Visual Acuity
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
         st.subheader("Visual Acuity")
         
@@ -900,7 +840,7 @@ def medical_examination():
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 3. REFRACTION
+        # Refraction
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
         st.subheader("Refraction")
         
@@ -931,7 +871,7 @@ def medical_examination():
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 4. TONOMETRY
+        # Tonometry
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
         st.subheader("Tonometry")
         
@@ -951,47 +891,7 @@ def medical_examination():
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 5. BIOMICROSCOPY
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Biomicroscopy")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**OD (Right Eye)**")
-            if st.session_state.bio_od_clicked:
-                st.success("✅ Biomicroscopy OD - device activated")
-            biomicroscopy_od = st.text_area("Findings OD", placeholder="Enter biomicroscopy findings for right eye...", height=100, key="bio_od")
-            
-        with col2:
-            st.write("**OS (Left Eye)**")
-            if st.session_state.bio_os_clicked:
-                st.success("✅ Biomicroscopy OS - device activated")
-            biomicroscopy_os = st.text_area("Findings OS", placeholder="Enter biomicroscopy findings for left eye...", height=100, key="bio_os")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 6. OPHTHALMOSCOPY
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Ophthalmoscopy")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**OD (Right Eye)**")
-            if st.session_state.oft_od_clicked:
-                st.success("✅ Ophthalmoscopy OD - device activated")
-            ophthalmoscopy_od = st.text_area("Findings OD", placeholder="Enter ophthalmoscopy findings for right eye...", height=100, key="oft_od")
-            
-        with col2:
-            st.write("**OS (Left Eye)**")
-            if st.session_state.oft_os_clicked:
-                st.success("✅ Ophthalmoscopy OS - device activated")
-            ophthalmoscopy_os = st.text_area("Findings OS", placeholder="Enter ophthalmoscopy findings for left eye...", height=100, key="oft_os")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 7. DIAGNOSIS AND TREATMENT
+        # Diagnosis and Treatment
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
         st.subheader("Diagnosis and Treatment")
         
@@ -1000,7 +900,7 @@ def medical_examination():
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # ADDITIONAL FIELDS FOR ANALYTICS
+        # Additional fields
         st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
         st.subheader("Additional Data for Statistics")
         
@@ -1015,7 +915,7 @@ def medical_examination():
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # SUBMIT BUTTON
+        # Submit buttons
         col1, col2 = st.columns(2)
         with col1:
             submit_button = st.form_submit_button("💾 SAVE EXAMINATION PROTOCOL", use_container_width=True)
@@ -1023,118 +923,98 @@ def medical_examination():
             generate_report = st.form_submit_button("📄 GENERATE REPORT", use_container_width=True)
         
         if submit_button or generate_report:
-            # Save to database
-            patient_id_str = selected_patient.split(" - ")[0]
-            c = conn.cursor()
-            
-            # Get patient database ID
-            c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id_str,))
-            result = c.fetchone()
-            
-            if result:
-                patient_db_id = result[0]
+            if selected_patient:
+                patient_id_str = selected_patient.split(" - ")[0]
+                c = conn.cursor()
                 
-                try:
-                    # Prepare data for insertion
-                    examination_data = {
-                        'patient_id': patient_db_id,
-                        'anamnesis': anamnesis,
-                        'distance_vision_uncorrected_od': distance_vision_uncorrected_od,
-                        'distance_vision_uncorrected_os': distance_vision_uncorrected_os,
-                        'distance_vision_corrected_od': distance_vision_corrected_od,
-                        'distance_vision_corrected_os': distance_vision_corrected_os,
-                        'near_vision_od': near_vision_od,
-                        'near_vision_os': near_vision_os,
-                        'tonometry_od': tonometry_od,
-                        'tonometry_os': tonometry_os,
-                        'biomicroscopy_od': biomicroscopy_od,
-                        'biomicroscopy_os': biomicroscopy_os,
-                        'ophthalmoscopy_od': ophthalmoscopy_od,
-                        'ophthalmoscopy_os': ophthalmoscopy_os,
-                        'diagnosis': diagnosis,
-                        'treatment': treatment,
-                        'refraction_performed': refraction_performed,
-                        'contact_lens_prescribed': contact_lens_prescribed,
-                        'contact_lens_type': contact_lens_type
-                    }
+                c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id_str,))
+                result = c.fetchone()
+                
+                if result:
+                    patient_db_id = result[0]
                     
-                    # Add refraction data if available
-                    if refraction_performed:
-                        examination_data.update({
-                            'sphere_od': sphere_od,
-                            'cylinder_od': cylinder_od,
-                            'axis_od': axis_od,
-                            'addition_od': addition_od,
-                            'pd_od': pd_od,
-                            'sphere_os': sphere_os,
-                            'cylinder_os': cylinder_os,
-                            'axis_os': axis_os,
-                            'addition_os': addition_os,
-                            'pd_os': pd_os,
-                            'refraction_type': refraction_type
-                        })
-                    
-                    # Insert into database
-                    placeholders = ', '.join(['?' for _ in examination_data])
-                    columns = ', '.join(examination_data.keys())
-                    values = list(examination_data.values())
-                    
-                    c.execute(f'''
-                        INSERT INTO medical_examinations ({columns})
-                        VALUES ({placeholders})
-                    ''', values)
-                    
-                    conn.commit()
-                    
-                    # Reset session state
-                    st.session_state.tono_od_clicked = False
-                    st.session_state.tono_os_clicked = False
-                    st.session_state.bio_od_clicked = False
-                    st.session_state.bio_os_clicked = False
-                    st.session_state.oft_od_clicked = False
-                    st.session_state.oft_os_clicked = False
-                    
-                    if submit_button:
-                        st.success("✅ Examination protocol successfully saved!")
-                        st.balloons()
-                    
-                    if generate_report:
-                        # Generate reports
-                        patient_data = pd.read_sql(
-                            "SELECT * FROM patients WHERE id = ?", 
-                            conn, params=(patient_db_id,)
-                        ).iloc[0]
+                    try:
+                        # Prepare examination data
+                        examination_data = {
+                            'patient_id': patient_db_id,
+                            'anamnesis': anamnesis,
+                            'distance_vision_uncorrected_od': distance_vision_uncorrected_od,
+                            'distance_vision_uncorrected_os': distance_vision_uncorrected_os,
+                            'distance_vision_corrected_od': distance_vision_corrected_od,
+                            'distance_vision_corrected_os': distance_vision_corrected_os,
+                            'near_vision_od': near_vision_od,
+                            'near_vision_os': near_vision_os,
+                            'tonometry_od': tonometry_od,
+                            'tonometry_os': tonometry_os,
+                            'diagnosis': diagnosis,
+                            'treatment': treatment,
+                            'refraction_performed': refraction_performed,
+                            'contact_lens_prescribed': contact_lens_prescribed,
+                            'contact_lens_type': contact_lens_type
+                        }
                         
-                        examination_data['visit_date'] = datetime.now().strftime('%d.%m.%Y.')
+                        # Add refraction data if performed
+                        if refraction_performed:
+                            examination_data.update({
+                                'sphere_od': sphere_od,
+                                'cylinder_od': cylinder_od,
+                                'axis_od': axis_od,
+                                'addition_od': addition_od,
+                                'pd_od': pd_od,
+                                'sphere_os': sphere_os,
+                                'cylinder_os': cylinder_os,
+                                'axis_os': axis_os,
+                                'addition_os': addition_os,
+                                'pd_os': pd_os,
+                                'refraction_type': refraction_type
+                            })
                         
-                        # Generate HTML report
-                        html_report = generate_html_report(patient_data, examination_data)
+                        # Insert into database
+                        columns = ', '.join(examination_data.keys())
+                        placeholders = ', '.join(['?' for _ in examination_data])
+                        values = list(examination_data.values())
                         
-                        # Generate CSV report
-                        csv_report = generate_csv_report(patient_data, examination_data)
+                        c.execute(f'INSERT INTO medical_examinations ({columns}) VALUES ({placeholders})', values)
+                        conn.commit()
                         
-                        st.success("✅ Report successfully generated!")
+                        # Reset session state
+                        for key in ['tono_od_clicked', 'tono_os_clicked', 'bio_od_clicked', 'bio_os_clicked', 'oft_od_clicked', 'oft_os_clicked']:
+                            st.session_state[key] = False
                         
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.download_button(
-                                label="📥 Download HTML Report",
-                                data=html_report,
-                                file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.html",
-                                mime="text/html"
-                            )
-                        with col2:
-                            st.download_button(
-                                label="📊 Download CSV Report",
-                                data=csv_report,
-                                file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.csv",
-                                mime="text/csv"
-                            )
+                        if submit_button:
+                            st.success("✅ Examination protocol successfully saved!")
+                            st.balloons()
+                        
+                        if generate_report:
+                            # Generate reports
+                            patient_data = pd.read_sql("SELECT * FROM patients WHERE id = ?", conn, params=(patient_db_id,)).iloc[0]
+                            examination_data['visit_date'] = datetime.now().strftime('%d.%m.%Y.')
+                            
+                            html_report = generate_html_report(patient_data, examination_data)
+                            csv_report = generate_csv_report(patient_data, examination_data)
+                            
+                            st.success("✅ Report successfully generated!")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.download_button(
+                                    label="📥 Download HTML Report",
+                                    data=html_report,
+                                    file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.html",
+                                    mime="text/html"
+                                )
+                            with col2:
+                                st.download_button(
+                                    label="📊 Download CSV Report",
+                                    data=csv_report,
+                                    file_name=f"report_{patient_data['patient_id']}_{datetime.now().strftime('%Y%m%d')}.csv",
+                                    mime="text/csv"
+                                )
                     
-                except Exception as e:
-                    st.error(f"❌ Error saving: {str(e)}")
-            else:
-                st.error("❌ Patient not found in database")
+                    except Exception as e:
+                        st.error(f"❌ Error saving: {str(e)}")
+                else:
+                    st.error("❌ Patient not found in database")
 
 # Patient Registration
 def patient_registration():
@@ -1161,7 +1041,6 @@ def patient_registration():
                 conn = init_db()
                 c = conn.cursor()
                 
-                # Generate patient ID
                 patient_id = f"PT{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 
                 try:
@@ -1170,7 +1049,6 @@ def patient_registration():
                         (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address))
-                    
                     conn.commit()
                     st.success(f"Patient successfully registered! Patient ID: {patient_id}")
                 except Exception as e:
@@ -1196,9 +1074,7 @@ def patient_search():
         if not patients.empty:
             st.dataframe(patients)
             
-            # Show medical history for selected patient
-            selected_patient_id = st.selectbox("Select patient for details", 
-                                             patients['patient_id'].tolist())
+            selected_patient_id = st.selectbox("Select patient for details", patients['patient_id'].tolist())
             
             if selected_patient_id:
                 medical_history = pd.read_sql(
@@ -1222,14 +1098,6 @@ def show_analytics():
     
     conn = init_db()
     
-    # Date range selector
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Start Date", datetime.now().replace(day=1))
-    with col2:
-        end_date = st.date_input("End Date", datetime.now())
-    
-    # Key metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -1278,7 +1146,6 @@ def show_analytics():
 def show_dashboard():
     st.subheader("Clinical Dashboard")
     
-    # Quick stats
     conn = init_db()
     
     col1, col2, col3, col4 = st.columns(4)
@@ -1308,22 +1175,6 @@ def show_dashboard():
             conn
         ).iloc[0]['count']
         st.metric("Exams This Month", monthly_exams)
-    
-    # Quick links
-    st.subheader("Quick Access")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("New Examination Protocol", use_container_width=True):
-            st.session_state.current_page = "Examination Protocol"
-    
-    with col2:
-        if st.button("Appointment Calendar", use_container_width=True):
-            st.session_state.current_page = "Calendar"
-    
-    with col3:
-        if st.button("Analytics", use_container_width=True):
-            st.session_state.current_page = "Analytics"
 
 # Main navigation
 def examination_protocol():
@@ -1357,7 +1208,6 @@ def examination_protocol():
 def main():
     load_css()
     
-    # Initialize session state
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
     if 'username' not in st.session_state:
@@ -1365,11 +1215,9 @@ def main():
     if 'role' not in st.session_state:
         st.session_state.role = None
     
-    # Check login status
     if not st.session_state.logged_in:
         login_page()
     else:
-        # Header with logos for main app
         col1, col2 = st.columns([3, 1])
         
         with col1:
@@ -1378,7 +1226,6 @@ def main():
         with col2:
             st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=150)
         
-        # Logout button
         col1, col2, col3 = st.columns([2, 1, 1])
         with col3:
             if st.button("Logout"):
@@ -1389,11 +1236,9 @@ def main():
         
         st.markdown("---")
         
-        # Show user info
         st.sidebar.markdown(f"**Logged in as:** {st.session_state.username}")
         st.sidebar.markdown(f"**Role:** {st.session_state.role}")
         
-        # Show examination protocol
         examination_protocol()
 
 if __name__ == "__main__":
