@@ -123,6 +123,24 @@ def authenticate_user(username, password):
         return user, "Success"
     return None, "Invalid credentials"
 
+def create_user(username, password, role, expiry_days=None):
+    conn = init_db()
+    c = conn.cursor()
+    
+    expiry_date = None
+    if expiry_days:
+        expiry_date = datetime.now() + timedelta(days=expiry_days)
+    
+    password_hash = hash_password(password)
+    
+    try:
+        c.execute("INSERT INTO users (username, password_hash, role, expiry_date) VALUES (?, ?, ?, ?)",
+                  (username, password_hash, role, expiry_date))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
 # Custom CSS for styling
 def load_css():
     st.markdown("""
@@ -248,13 +266,15 @@ def login_page():
 def show_calendar():
     st.subheader("Kalendar pregleda")
     
+    # Initialize session state for calendar if not exists
+    if 'current_month' not in st.session_state:
+        st.session_state.current_month = datetime.now().month
+        st.session_state.current_year = datetime.now().year
+    
     # Month navigation
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
         if st.button("◀ Prethodni mjesec"):
-            if 'current_month' not in st.session_state:
-                st.session_state.current_month = datetime.now().month
-                st.session_state.current_year = datetime.now().year
             st.session_state.current_month -= 1
             if st.session_state.current_month == 0:
                 st.session_state.current_month = 12
@@ -262,10 +282,6 @@ def show_calendar():
             st.rerun()
     
     with col2:
-        if 'current_month' not in st.session_state:
-            st.session_state.current_month = datetime.now().month
-            st.session_state.current_year = datetime.now().year
-        
         month_name = ["Siječanj", "Veljača", "Ožujak", "Travanj", "Svibanj", "Lipanj",
                      "Srpanj", "Kolovoz", "Rujan", "Listopad", "Studeni", "Prosinac"][st.session_state.current_month - 1]
         st.markdown(f"<h3 style='text-align: center;'>{month_name} {st.session_state.current_year}</h3>", unsafe_allow_html=True)
@@ -355,7 +371,7 @@ def show_calendar():
                 selected_patient = ""
             
             appointment_date = st.date_input("Datum pregleda*", min_value=datetime.now().date())
-            appointment_time = st.time_input("Vrijeme pregleda*")
+            appointment_time = st.time_input("Vrijeme pregleda*", value=datetime.now().time())
         
         with col2:
             duration = st.selectbox("Trajanje pregleda*", [15, 30, 45, 60, 90, 120], index=1)
@@ -519,31 +535,260 @@ def show_analytics():
     
     st.dataframe(stats_data)
 
-# Main protocol examination page
-def examination_protocol():
-    st.sidebar.title("OphtalCAM Navigacija")
-    menu = st.sidebar.selectbox("Izbornik", [
-        "Početna",
-        "Novi pacijent", 
-        "Protokol pregleda",
-        "Kalendar",
-        "Pregled kartona",
-        "Analitika"
-    ])
+# Patient registration
+def patient_registration():
+    st.subheader("Registracija novog pacijenta")
     
-    if menu == "Početna":
-        show_dashboard()
-    elif menu == "Novi pacijent":
-        patient_registration()
-    elif menu == "Protokol pregleda":
-        medical_examination()
-    elif menu == "Kalendar":
-        show_calendar()
-    elif menu == "Pregled kartona":
-        patient_search()
-    elif menu == "Analitika":
-        show_analytics()
+    with st.form("patient_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            first_name = st.text_input("Ime*")
+            last_name = st.text_input("Prezime*")
+            date_of_birth = st.date_input("Datum rođenja*", max_value=datetime.now().date())
+            gender = st.selectbox("Spol*", ["", "Muški", "Ženski"])
+        
+        with col2:
+            phone = st.text_input("Telefon")
+            email = st.text_input("Email")
+            address = st.text_area("Adresa")
+        
+        submit_button = st.form_submit_button("Registriraj pacijenta")
+        
+        if submit_button:
+            if first_name and last_name and date_of_birth and gender:
+                conn = init_db()
+                c = conn.cursor()
+                
+                # Generate patient ID
+                patient_id = f"PT{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                try:
+                    c.execute('''
+                        INSERT INTO patients 
+                        (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address))
+                    
+                    conn.commit()
+                    st.success(f"Pacijent uspješno registriran! ID pacijenta: {patient_id}")
+                except Exception as e:
+                    st.error(f"Greška pri registraciji: {str(e)}")
+            else:
+                st.error("Molimo popunite sva obavezna polja (označena sa *)")
 
+# Medical examination
+def medical_examination():
+    st.subheader("Protokol oftalmološkog pregleda")
+    
+    # Odabir pacijenta
+    conn = init_db()
+    patients = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
+    
+    if patients.empty:
+        st.warning("Nema registriranih pacijenata. Molimo prvo registrirajte pacijenta.")
+        return
+    
+    patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients.iterrows()]
+    selected_patient = st.selectbox("Odaberite pacijenta*", [""] + patient_options)
+    
+    if not selected_patient:
+        st.info("Odaberite pacijenta za nastavak pregleda")
+        return
+    
+    with st.form("examination_form"):
+        # 1. ANAMNESA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Anamneza")
+        anamneza = st.text_area("Opis anamneze", placeholder="Unesite podatke iz anamneze...", height=100)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 2. VIZUS
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Vizus")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**OD (Desno oko)**")
+            vizus_od_udaljenog_bez_corr_od = st.text_input("Udaljeni bez korekcije OD", placeholder="npr. 0.8")
+            vizus_od_udaljenog_sa_corr_od = st.text_input("Udaljeni sa korekcijom OD", placeholder="npr. 1.0")
+            vizus_iz_bliza_od = st.text_input("Blizu OD", placeholder="npr. 0.8")
+            
+        with col2:
+            st.write("**OS (Lijevo oko)**")
+            vizus_od_udaljenog_bez_corr_os = st.text_input("Udaljeni bez korekcije OS", placeholder="npr. 0.6")
+            vizus_od_udaljenog_sa_corr_os = st.text_input("Udaljeni sa korekcijom OS", placeholder="npr. 1.0")
+            vizus_iz_bliza_os = st.text_input("Blizu OS", placeholder="npr. 0.6")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 3. TONOMETRIJA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Tonometrija")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("OphtalCAM Device")
+            if st.button("OPHTHALCAM TONOMETRIJA", key="tono_od", use_container_width=True):
+                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
+            tonometrija_od = st.text_input("Vrijednost OD (mmHg)", placeholder="npr. 16")
+            
+        with col2:
+            st.write("OphtalCAM Device") 
+            if st.button("OPHTHALCAM TONOMETRIJA", key="tono_os", use_container_width=True):
+                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
+            tonometrija_os = st.text_input("Vrijednost OS (mmHg)", placeholder="npr. 17")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 4. BIOMIKROSKOPIJA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Biomikroskopija")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("OphtalCAM Device")
+            if st.button("OPHTHALCAM BIOMIKROSKOPIJA", key="bio_od", use_container_width=True):
+                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
+            biomikroskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz biomikroskopije za desno oko...", height=100)
+            
+        with col2:
+            st.write("OphtalCAM Device")
+            if st.button("OPHTHALCAM BIOMIKROSKOPIJA", key="bio_os", use_container_width=True):
+                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
+            biomikroskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz biomikroskopije za lijevo oko...", height=100)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 5. OFTALMOSKOPIJA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Oftalmoskopija")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("OphtalCAM Device")
+            if st.button("OPHTHALCAM OFTALMOSKOPIJA", key="oft_od", use_container_width=True):
+                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
+            oftalmoskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz oftalmoskopije za desno oko...", height=100)
+            
+        with col2:
+            st.write("OphtalCAM Device")
+            if st.button("OPHTHALCAM OFTALMOSKOPIJA", key="oft_os", use_container_width=True):
+                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
+            oftalmoskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz oftalmoskopije za lijevo oko...", height=100)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 6. DJIAGNOZA I TRETMAN
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Dijagnoza i tretman")
+        
+        dijagnoza = st.text_area("Dijagnoza", placeholder="Unesite dijagnozu...", height=80)
+        tretman = st.text_area("Preporučeni tretman", placeholder="Unesite preporučeni tretman...", height=80)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # DODATNA POLJA ZA ANALITIKU
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Dodatni podaci za statistiku")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            refrakcija_obavljena = st.checkbox("Refrakcija obavljena")
+        
+        with col2:
+            kontaktne_lece_prepisane = st.checkbox("Kontaktne leće prepisane")
+            tip_kontaktnih_leca = ""
+            if kontaktne_lece_prepisane:
+                tip_kontaktnih_leca = st.selectbox("Tip kontaktnih leća", [
+                    "Mekane dnevne", "Mekane mjesečne", "Mekane godišnje",
+                    "Rigidne gas permeable", "Scleralne", "Terapijske",
+                    "Kosmetičke", "Kustomizirane"
+                ])
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # SUBMIT BUTTON
+        submit_button = st.form_submit_button("SPREMI PROTOKOL PREGLEDA", use_container_width=True)
+        
+        if submit_button:
+            # Save to database
+            patient_id_str = selected_patient.split(" - ")[0]
+            c = conn.cursor()
+            
+            # Get patient database ID
+            c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id_str,))
+            result = c.fetchone()
+            
+            if result:
+                patient_db_id = result[0]
+                
+                try:
+                    c.execute('''
+                        INSERT INTO medical_examinations 
+                        (patient_id, anamneza, vizus_od_udaljenog_bez_corr_od, vizus_od_udaljenog_bez_corr_os,
+                         vizus_od_udaljenog_sa_corr_od, vizus_od_udaljenog_sa_corr_os, vizus_iz_bliza_od, vizus_iz_bliza_os,
+                         tonometrija_od, tonometrija_os, biomikroskopija_od, biomikroskopija_os,
+                         oftalmoskopija_od, oftalmoskopija_os, dijagnoza, tretman,
+                         refrakcija_obavljena, kontaktne_lece_prepisane, tip_kontaktnih_leca)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (patient_db_id, anamneza, vizus_od_udaljenog_bez_corr_od, vizus_od_udaljenog_bez_corr_os,
+                          vizus_od_udaljenog_sa_corr_od, vizus_od_udaljenog_sa_corr_os, vizus_iz_bliza_od, vizus_iz_bliza_os,
+                          tonometrija_od, tonometrija_os, biomikroskopija_od, biomikroskopija_os,
+                          oftalmoskopija_od, oftalmoskopija_os, dijagnoza, tretman,
+                          refrakcija_obavljena, kontaktne_lece_prepisane, tip_kontaktnih_leca))
+                    
+                    conn.commit()
+                    st.success("Protokol pregleda uspješno spremljen!")
+                except Exception as e:
+                    st.error(f"Greška pri spremanju: {str(e)}")
+            else:
+                st.error("Pacijent nije pronađen u bazi podataka")
+
+# Patient search
+def patient_search():
+    st.subheader("Pretraga pacijenata i pregled kartona")
+    
+    conn = init_db()
+    
+    search_term = st.text_input("Pretraži pacijente (ime, prezime ili ID)")
+    
+    if search_term:
+        patients = pd.read_sql(
+            """SELECT * FROM patients 
+               WHERE first_name LIKE ? OR last_name LIKE ? OR patient_id LIKE ?""", 
+            conn, params=(f"%{search_term}%", f"%{search_term}%", f"%{search_term}%")
+        )
+        
+        if not patients.empty:
+            st.dataframe(patients)
+            
+            # Show medical history for selected patient
+            selected_patient_id = st.selectbox("Odaberite pacijenta za detalje", 
+                                             patients['patient_id'].tolist())
+            
+            if selected_patient_id:
+                medical_history = pd.read_sql(
+                    """SELECT * FROM medical_examinations me
+                       JOIN patients p ON me.patient_id = p.id
+                       WHERE p.patient_id = ?""", 
+                    conn, params=(selected_patient_id,)
+                )
+                
+                if not medical_history.empty:
+                    st.subheader("Povijest pregleda")
+                    st.dataframe(medical_history)
+                else:
+                    st.info("Nema zapisa o pregledima za ovog pacijenta")
+        else:
+            st.info("Nema pronađenih pacijenata")
+
+# Dashboard
 def show_dashboard():
     st.subheader("Klinički dashboard")
     
@@ -594,57 +839,30 @@ def show_dashboard():
         if st.button("Analitika", use_container_width=True):
             st.session_state.current_page = "Analitika"
 
-# [OSTALE FUNKCIJE - patient_registration, medical_examination, patient_search ostaju iste]
-# (Dodat ću samo refrakcija_obavljena i kontaktne_lece_prepisane polja u medical_examination)
-
-def medical_examination():
-    st.subheader("Protokol oftalmološkog pregleda")
+# Main protocol examination page
+def examination_protocol():
+    st.sidebar.title("OphtalCAM Navigacija")
+    menu = st.sidebar.selectbox("Izbornik", [
+        "Početna",
+        "Novi pacijent", 
+        "Protokol pregleda",
+        "Kalendar",
+        "Pregled kartona",
+        "Analitika"
+    ])
     
-    # Odabir pacijenta
-    conn = init_db()
-    patients = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
-    
-    if patients.empty:
-        st.warning("Nema registriranih pacijenata. Molimo prvo registrirajte pacijenta.")
-        return
-    
-    patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients.iterrows()]
-    selected_patient = st.selectbox("Odaberite pacijenta*", [""] + patient_options)
-    
-    if not selected_patient:
-        st.info("Odaberite pacijenta za nastavak pregleda")
-        return
-    
-    with st.form("examination_form"):
-        # [OSTALE SEKCIJE PREGLEDA OSTAJU ISTE...]
-        
-        # DODATNA POLJA ZA ANALITIKU
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Dodatni podaci za statistiku")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            refrakcija_obavljena = st.checkbox("Refrakcija obavljena")
-        
-        with col2:
-            kontaktne_lece_prepisane = st.checkbox("Kontaktne leće prepisane")
-            tip_kontaktnih_leca = ""
-            if kontaktne_lece_prepisane:
-                tip_kontaktnih_leca = st.selectbox("Tip kontaktnih leća", [
-                    "Mekane dnevne", "Mekane mjesečne", "Mekane godišnje",
-                    "Rigidne gas permeable", "Scleralne", "Terapijske",
-                    "Kosmetičke", "Kustomizirane"
-                ])
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # SUBMIT BUTTON
-        submit_button = st.form_submit_button("SPREMI PROTOKOL PREGLEDA", use_container_width=True)
-        
-        if submit_button:
-            # [SAVE LOGIC WITH NEW FIELDS...]
-            pass
+    if menu == "Početna":
+        show_dashboard()
+    elif menu == "Novi pacijent":
+        patient_registration()
+    elif menu == "Protokol pregleda":
+        medical_examination()
+    elif menu == "Kalendar":
+        show_calendar()
+    elif menu == "Pregled kartona":
+        patient_search()
+    elif menu == "Analitika":
+        show_analytics()
 
 # Main application flow
 def main():
@@ -657,8 +875,6 @@ def main():
         st.session_state.username = None
     if 'role' not in st.session_state:
         st.session_state.role = None
-    if 'current_page' not in st.session_state:
-        st.session_state.current_page = "Početna"
     
     # Check login status
     if not st.session_state.logged_in:
