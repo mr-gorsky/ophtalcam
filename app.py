@@ -1,16 +1,14 @@
+# app.py - updated
 import streamlit as st
 import sqlite3
 import pandas as pd
 import datetime
 import hashlib
 from datetime import datetime, timedelta
-import plotly.express as px
-import plotly.graph_objects as go
 import calendar
 import io
-import base64
-import csv
 import os
+import json
 
 # Page configuration
 st.set_page_config(
@@ -45,7 +43,7 @@ def init_db():
             first_name TEXT NOT NULL,
             last_name TEXT NOT NULL,
             date_of_birth DATE NOT NULL,
-            gender TEXT NOT NULL,
+            gender TEXT,
             phone TEXT,
             email TEXT,
             address TEXT,
@@ -62,58 +60,47 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            
-            -- General Health
             general_health TEXT,
             current_medications TEXT,
             allergies TEXT,
             headaches_history TEXT,
             family_history TEXT,
-            
-            -- Ocular History
             ocular_history TEXT,
             previous_surgeries TEXT,
             eye_medications TEXT,
             last_eye_exam DATE,
-            
-            -- Social History
             smoking_status TEXT,
             alcohol_consumption TEXT,
             occupation TEXT,
             hobbies TEXT,
-            
+            uploaded_reports TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
     
-    # Refraction Examination table - COMPLETE
+    # Refraction Examination table - expanded to match Figma fields
     c.execute('''
         CREATE TABLE IF NOT EXISTS refraction_exams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             exam_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             
-            -- Habitual Correction
-            habitual_correction_type TEXT,
-            habitual_od_sphere REAL,
-            habitual_od_cylinder REAL,
-            habitual_od_axis INTEGER,
-            habitual_od_add REAL,
+            -- Habitual
+            habitual_type TEXT,
             habitual_od_va TEXT,
-            habitual_os_sphere REAL,
-            habitual_os_cylinder REAL,
-            habitual_os_axis INTEGER,
-            habitual_os_add REAL,
             habitual_os_va TEXT,
             habitual_binocular_va TEXT,
+            habitual_pd TEXT,
+            habitual_notes TEXT,
             
-            -- Uncorrected Vision
+            -- Uncorrected vision
             uncorrected_od_va TEXT,
             uncorrected_os_va TEXT,
             uncorrected_binocular_va TEXT,
             
-            -- Objective Refraction
-            objective_refraction_time TEXT,
+            -- Objective
+            objective_method TEXT,
+            objective_time TEXT,
             autorefractor_od_sphere REAL,
             autorefractor_od_cylinder REAL,
             autorefractor_od_axis INTEGER,
@@ -121,237 +108,151 @@ def init_db():
             autorefractor_os_cylinder REAL,
             autorefractor_os_axis INTEGER,
             
-            -- Subjective Refraction
-            subjective_method TEXT,
+            -- Cycloplegic
             cycloplegic_used BOOLEAN,
-            cycloplegic_type TEXT,
+            cycloplegic_agent TEXT,
             cycloplegic_lot TEXT,
             cycloplegic_expiry DATE,
             cycloplegic_drops INTEGER,
+            cycloplegic_objective_od TEXT,
+            cycloplegic_objective_os TEXT,
+            
+            -- Subjective (monocular)
+            subjective_method TEXT,
             subjective_od_sphere REAL,
             subjective_od_cylinder REAL,
             subjective_od_axis INTEGER,
             subjective_os_sphere REAL,
             subjective_os_cylinder REAL,
             subjective_os_axis INTEGER,
+            subjective_notes TEXT,
             
-            -- Binocular Tests
+            -- Binocular & final prescription
             binocular_balance TEXT,
             stereopsis TEXT,
-            near_point_convergence TEXT,
-            near_point_accommodation TEXT,
-            
-            -- Prescribed Correction
-            prescribed_od_sphere REAL,
-            prescribed_od_cylinder REAL,
-            prescribed_od_axis INTEGER,
-            prescribed_od_add REAL,
-            prescribed_od_va TEXT,
-            prescribed_os_sphere REAL,
-            prescribed_os_cylinder REAL,
-            prescribed_os_axis INTEGER,
-            prescribed_os_add REAL,
-            prescribed_os_va TEXT,
-            prescribed_binocular_va TEXT,
+            near_point_convergence_break TEXT,
+            near_point_convergence_recovery TEXT,
+            final_prescribed_od_sphere REAL,
+            final_prescribed_od_cylinder REAL,
+            final_prescribed_od_axis INTEGER,
+            final_prescribed_os_sphere REAL,
+            final_prescribed_os_cylinder REAL,
+            final_prescribed_os_axis INTEGER,
+            final_prescribed_binocular_va TEXT,
+            bvp TEXT,
+            pinhole TEXT,
             prescription_notes TEXT,
+            
+            -- Binocular/Functional free text
+            binocular_tests TEXT,
+            functional_tests TEXT,
+            accommodation_tests TEXT,
+            
+            -- Files references (JSON list)
+            uploaded_files TEXT,
             
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
-    
-    # Functional Tests table - COMPLETE
+
+    # Functional Tests table - kept for future modularity
     c.execute('''
         CREATE TABLE IF NOT EXISTS functional_tests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             test_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            
-            -- Motility
-            motility_od TEXT,
-            motility_os TEXT,
-            motility_notes TEXT,
-            motility_device_used BOOLEAN DEFAULT 0,
-            
-            -- Hirschberg Test
-            hirschberg_result TEXT,
-            hirschberg_device_used BOOLEAN DEFAULT 0,
-            
-            -- Cover Tests
+            motility TEXT,
+            hirschberg TEXT,
             cover_test_distance TEXT,
             cover_test_near TEXT,
-            alternate_cover_test TEXT,
-            
-            -- Pupil Examination
-            pupil_size_od TEXT,
-            pupil_size_os TEXT,
-            pupil_shape_od TEXT,
-            pupil_shape_os TEXT,
-            pupil_reactivity_od TEXT,
-            pupil_reactivity_os TEXT,
-            pupil_afferent_defect TEXT,
-            pupil_device_used BOOLEAN DEFAULT 0,
-            
-            -- Accommodation
-            accommodation_amplitude_od TEXT,
-            accommodation_amplitude_os TEXT,
-            near_point_accommodation_od TEXT,
-            near_point_accommodation_os TEXT,
-            accommodation_device_used BOOLEAN DEFAULT 0,
-            
-            -- Visual Fields
+            pupils TEXT,
             confrontation_fields TEXT,
-            
-            -- Additional Tests
-            worth_four_dot TEXT,
-            bagolini_striated TEXT,
-            maddox_rod TEXT,
-            
-            functional_notes TEXT,
-            
+            other_notes TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
-    
+
     # Anterior Segment Examination table - COMPLETE
     c.execute('''
         CREATE TABLE IF NOT EXISTS anterior_segment_exams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             exam_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            
-            -- Biomicroscopy
             biomicroscopy_od TEXT,
             biomicroscopy_os TEXT,
             biomicroscopy_notes TEXT,
-            biomicroscopy_device_used BOOLEAN DEFAULT 0,
-            
-            -- Anterior Chamber
             anterior_chamber_depth_od TEXT,
             anterior_chamber_depth_os TEXT,
             anterior_chamber_volume_od TEXT,
             anterior_chamber_volume_os TEXT,
             iridocorneal_angle_od TEXT,
             iridocorneal_angle_os TEXT,
-            
-            -- Pachymetry
             pachymetry_od REAL,
             pachymetry_os REAL,
-            
-            -- Tonometry
             tonometry_type TEXT,
             tonometry_time TEXT,
             tonometry_compensation TEXT,
             tonometry_od TEXT,
             tonometry_os TEXT,
-            
-            -- Additional Tests
             aberometry_notes TEXT,
             corneal_topography_notes TEXT,
-            
             anterior_segment_notes TEXT,
-            
+            uploaded_files TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
-    
+
     # Posterior Segment Examination table - COMPLETE
     c.execute('''
         CREATE TABLE IF NOT EXISTS posterior_segment_exams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             exam_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            
-            -- Fundus Examination
             fundus_exam_type TEXT,
             fundus_od TEXT,
             fundus_os TEXT,
             fundus_notes TEXT,
-            fundus_device_used BOOLEAN DEFAULT 0,
-            
-            -- Pupillography
             pupillography_results TEXT,
             pupillography_notes TEXT,
-            pupillography_device_used BOOLEAN DEFAULT 0,
-            
-            -- OCT
             oct_macula_od TEXT,
             oct_macula_os TEXT,
             oct_rnfl_od TEXT,
             oct_rnfl_os TEXT,
             oct_notes TEXT,
-            
             posterior_segment_notes TEXT,
-            
+            uploaded_files TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
-    
+
     # Contact Lenses table - COMPLETE
     c.execute('''
         CREATE TABLE IF NOT EXISTS contact_lens_prescriptions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             prescription_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            
-            -- Lens Type
             lens_type TEXT NOT NULL,
-            
-            -- Soft Lenses
             soft_brand TEXT,
             soft_base_curve REAL,
             soft_diameter REAL,
             soft_power_od REAL,
             soft_power_os REAL,
-            soft_axis_od INTEGER,
-            soft_axis_os INTEGER,
-            soft_add_od REAL,
-            soft_add_os REAL,
-            soft_color TEXT,
-            soft_replacement_schedule TEXT,
-            
-            -- RGP Lenses
             rgp_design TEXT,
             rgp_material TEXT,
             rgp_base_curve REAL,
-            rgp_secondary_curve REAL,
             rgp_diameter REAL,
-            rgp_power_od REAL,
-            rgp_power_os REAL,
-            rgp_axis_od INTEGER,
-            rgp_axis_os INTEGER,
-            rgp_add_od REAL,
-            rgp_add_os REAL,
-            rgp_edge_lift REAL,
-            rgp_optical_zone REAL,
-            rgp_color TEXT,
-            rgp_stabilization TEXT,
-            
-            -- Scleral Lenses
             scleral_design TEXT,
             scleral_material TEXT,
             scleral_diameter REAL,
-            scleral_clearance REAL,
-            scleral_power_od REAL,
-            scleral_power_os REAL,
-            scleral_axis_od INTEGER,
-            scleral_axis_os INTEGER,
-            scleral_add_od REAL,
-            scleral_add_os REAL,
-            
-            -- Special Lenses
-            special_lens_type TEXT,
-            special_parameters TEXT,
-            
-            -- General
             wearing_schedule TEXT,
             care_solution TEXT,
             follow_up_date DATE,
             fitting_notes TEXT,
-            
+            uploaded_files TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
-    
+
     # Patient Groups table
     c.execute('''
         CREATE TABLE IF NOT EXISTS patient_groups (
@@ -361,7 +262,7 @@ def init_db():
             created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+
     # Patient Group Assignments
     c.execute('''
         CREATE TABLE IF NOT EXISTS patient_group_assignments (
@@ -374,7 +275,7 @@ def init_db():
             FOREIGN KEY (group_id) REFERENCES patient_groups (id)
         )
     ''')
-    
+
     # Appointments table
     c.execute('''
         CREATE TABLE IF NOT EXISTS appointments (
@@ -389,7 +290,7 @@ def init_db():
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
-    
+
     # Insert default admin user
     try:
         admin_hash = hashlib.sha256("admin123".encode()).hexdigest()
@@ -397,7 +298,7 @@ def init_db():
                   ("admin", admin_hash, "admin"))
     except:
         pass
-    
+
     # Insert default patient groups
     default_groups = [
         ("Corneal Ectasias", "Keratoconus, Pellucid Marginal Degeneration, Post-LASIK Ectasia"),
@@ -409,14 +310,14 @@ def init_db():
         ("Dry Eye Syndrome", "Aqueous deficient, Evaporative dry eye, MGD"),
         ("Neuro-ophthalmology", "Optic neuritis, Papilledema, Cranial nerve palsies")
     ]
-    
+
     for group_name, description in default_groups:
         try:
             c.execute("INSERT OR IGNORE INTO patient_groups (group_name, description) VALUES (?, ?)", 
                      (group_name, description))
         except:
             pass
-    
+
     conn.commit()
     return conn
 
@@ -480,53 +381,53 @@ def load_css():
     .metric-card {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         color: white;
-        padding: 1.5rem;
+        padding: 1.2rem;
         border-radius: 10px;
         text-align: center;
-        margin: 0.5rem;
+        margin: 0.4rem;
         border: 1px solid #e0e0e0;
     }
     .metric-value {
-        font-size: 2rem;
+        font-size: 1.6rem;
         font-weight: bold;
-        margin: 0.5rem 0;
+        margin: 0.3rem 0;
         font-family: 'Arial', sans-serif;
     }
     .metric-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
+        font-size: 0.85rem;
+        opacity: 0.95;
         font-family: 'Arial', sans-serif;
     }
     .appointment-card {
         background-color: #f8f9fa;
-        padding: 1rem;
+        padding: 0.9rem;
         border-radius: 8px;
-        margin: 0.5rem 0;
+        margin: 0.4rem 0;
         border-left: 4px solid #1e3c72;
         font-family: 'Arial', sans-serif;
     }
     .protocol-section {
         background-color: #ffffff;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.8rem;
         border: 1px solid #e0e0e0;
         border-left: 4px solid #1e3c72;
         font-family: 'Arial', sans-serif;
     }
     .sub-section {
         background-color: #fafafa;
-        padding: 1rem;
+        padding: 0.8rem;
         border-radius: 8px;
-        margin: 0.5rem 0;
+        margin: 0.4rem 0;
         border: 1px solid #e0e0e0;
         font-family: 'Arial', sans-serif;
     }
     .eye-section {
         background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-        padding: 1rem;
+        padding: 0.9rem;
         border-radius: 8px;
-        margin: 0.5rem 0;
+        margin: 0.4rem 0;
         border: 1px solid #e0e0e0;
         font-family: 'Arial', sans-serif;
     }
@@ -534,19 +435,19 @@ def load_css():
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         color: white;
         border: none;
-        padding: 0.5rem 1rem;
+        padding: 0.4rem 0.8rem;
         border-radius: 5px;
-        margin: 0.2rem;
+        margin: 0.15rem;
         font-family: 'Arial', sans-serif;
         font-weight: 500;
     }
     .exam-step {
         background-color: #e3f2fd;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        margin: 0.2rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 15px;
+        margin: 0.15rem;
         display: inline-block;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-family: 'Arial', sans-serif;
     }
     .exam-step.active {
@@ -554,23 +455,14 @@ def load_css():
         color: white;
         font-weight: bold;
     }
-    .medical-warning {
-        background-color: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-left: 4px solid #fdcb6e;
-        padding: 1rem;
-        border-radius: 5px;
-        margin: 0.5rem 0;
-        font-family: 'Arial', sans-serif;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# DASHBOARD - Professional medical dashboard
+# DASHBOARD - Professional medical dashboard (first screen)
 def show_dashboard():
     st.markdown("<h1 style='text-align: center; font-family: Arial, sans-serif;'>OphtalCAM Clinical Dashboard</h1>", unsafe_allow_html=True)
     
-    # Date filter
+    # Date filter and new appointment button
     col_filter = st.columns([2, 1, 1, 1])
     with col_filter[0]:
         view_option = st.selectbox("Time View", ["Today", "This Week", "This Month"], key="view_filter")
@@ -594,7 +486,7 @@ def show_dashboard():
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-value">{today_exams}</div>
-            <div class="metric-label">Scheduled Examinations</div>
+            <div class="metric-label">Scheduled Examinations (today)</div>
         </div>
         """, unsafe_allow_html=True)
     with col_metrics[2]:
@@ -633,7 +525,7 @@ def show_dashboard():
                     with col_btn[1]:
                         if st.button("Patient Details", key=f"details_{apt['id']}", use_container_width=True):
                             st.session_state.selected_patient = apt['patient_id']
-                            st.session_state.menu = "Patient Records"
+                            st.session_state.menu = "Patient Search"
                             st.rerun()
         else:
             st.info("No appointments scheduled for today.")
@@ -678,14 +570,14 @@ def show_dashboard():
             st.rerun()
         
         if st.button("📊 Clinical Analytics", use_container_width=True):
-            st.session_state.menu = "Analytics"
+            st.session_state.menu = "Clinical Analytics"
             st.rerun()
 
 # MEDICAL HISTORY - Comprehensive medical history
 def medical_history():
     st.subheader("📋 Comprehensive Medical History & Anamnesis")
     
-    if 'selected_patient' not in st.session_state:
+    if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
         st.error("❌ No patient selected. Please select a patient from the Dashboard.")
         return
     
@@ -705,13 +597,13 @@ def medical_history():
         col1, col2 = st.columns(2)
         
         with col1:
-            general_health = st.text_area("General Health Status*", 
+            general_health = st.text_area("General Health Status", 
                                         placeholder="Chronic conditions, systemic diseases, hospitalizations...", 
                                         height=100)
-            current_medications = st.text_area("Current Medications*", 
+            current_medications = st.text_area("Current Medications", 
                                             placeholder="List all current medications with dosages...", 
                                             height=100)
-            allergies = st.text_area("Allergies & Reactions*", 
+            allergies = st.text_area("Allergies & Reactions", 
                                    placeholder="Drug allergies, environmental allergies, reactions...", 
                                    height=80)
         
@@ -719,7 +611,7 @@ def medical_history():
             headaches_history = st.text_area("Headaches & Migraines", 
                                            placeholder="Frequency, type, duration, triggers, treatment...", 
                                            height=80)
-            family_history = st.text_area("Family Medical History*", 
+            family_history = st.text_area("Family Medical History", 
                                         placeholder="Ocular and systemic conditions in family members...", 
                                         height=100)
         
@@ -728,7 +620,7 @@ def medical_history():
         col_ocular1, col_ocular2 = st.columns(2)
         
         with col_ocular1:
-            ocular_history = st.text_area("Ocular History & Conditions*", 
+            ocular_history = st.text_area("Ocular History & Conditions", 
                                         placeholder="Previous eye diseases, conditions, treatments...", 
                                         height=100)
             previous_surgeries = st.text_area("Previous Ocular Surgeries", 
@@ -758,274 +650,450 @@ def medical_history():
                                  height=60)
         
         st.markdown("#### Previous Medical Documents")
-        previous_reports = st.file_uploader("Upload Previous Medical Reports", 
+        previous_reports = st.file_uploader("Upload Previous Medical Reports (pdf, jpg, png, docx)", 
                                           type=['pdf', 'jpg', 'png', 'docx'], 
                                           accept_multiple_files=True,
                                           help="Upload previous examination reports, lab results, imaging studies...")
         
-        if previous_reports:
-            st.info(f"📎 {len(previous_reports)} file(s) ready for upload")
-        
-        st.markdown("---")
-        submit_history = st.form_submit_button("💾 Save Medical History & Continue to Refraction Examination", 
+        submit_history = st.form_submit_button("💾 Save Medical History & Continue to Refraction", 
                                              use_container_width=True)
         
         if submit_history:
-            if not general_health or not current_medications or not allergies or not family_history or not ocular_history:
-                st.error("❌ Please complete all required fields (marked with *)")
-            else:
-                try:
-                    c = conn.cursor()
-                    
-                    # Save medical history
-                    c.execute('''
-                        INSERT INTO medical_history 
-                        (patient_id, general_health, current_medications, allergies, headaches_history, 
-                         family_history, ocular_history, previous_surgeries, eye_medications, last_eye_exam,
-                         smoking_status, alcohol_consumption, occupation, hobbies)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (patient_info['id'], general_health, current_medications, allergies, headaches_history,
-                         family_history, ocular_history, previous_surgeries, eye_medications, last_eye_exam,
-                         smoking_status, alcohol_consumption, occupation, hobbies))
-                    
-                    conn.commit()
-                    st.success("✅ Comprehensive medical history saved successfully!")
-                    
-                    # Auto-navigate to refraction
-                    st.session_state.exam_step = "refraction"
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"❌ Database error: {str(e)}")
+            try:
+                c = conn.cursor()
+                files_list = []
+                if previous_reports:
+                    upload_dir = "uploads"
+                    os.makedirs(upload_dir, exist_ok=True)
+                    for f in previous_reports:
+                        file_path = os.path.join(upload_dir, f"{datetime.now().timestamp()}_{f.name}")
+                        with open(file_path, "wb") as fp:
+                            fp.write(f.getbuffer())
+                        files_list.append(file_path)
+                
+                c.execute('''
+                    INSERT INTO medical_history 
+                    (patient_id, general_health, current_medications, allergies, headaches_history, 
+                     family_history, ocular_history, previous_surgeries, eye_medications, last_eye_exam,
+                     smoking_status, alcohol_consumption, occupation, hobbies, uploaded_reports)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (patient_info['id'], general_health, current_medications, allergies, headaches_history,
+                     family_history, ocular_history, previous_surgeries, eye_medications, last_eye_exam,
+                     smoking_status, alcohol_consumption, occupation, hobbies, json.dumps(files_list)))
+                
+                conn.commit()
+                st.success("✅ Comprehensive medical history saved successfully!")
+                
+                # Auto-navigate to refraction entry
+                st.session_state.exam_step = "refraction"
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Database error: {str(e)}")
 
-# REFRACTION EXAMINATION - Complete professional refraction
+# REFRACTION EXAMINATION - modular, multi-section flow based on Figma
 def refraction_examination():
-    st.subheader("🔍 Comprehensive Refraction Examination")
+    st.subheader("🔍 Comprehensive Refraction & Vision Examination")
     
-    if 'selected_patient' not in st.session_state:
-        st.error("❌ Please complete medical history first.")
+    if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
+        st.error("❌ Please select a patient first.")
         return
     
     patient_id = st.session_state.selected_patient
+    # Load basic patient info
+    try:
+        patient_info = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]
+        st.markdown(f"### Patient: {patient_info['first_name']} {patient_info['last_name']} (ID: {patient_info['patient_id']})")
+    except:
+        st.error("❌ Patient not found in database.")
+        return
     
-    with st.form("refraction_form"):
-        st.markdown("#### 1. Habitual Correction Analysis")
+    # Initialize session state buckets for refraction if not present
+    if 'refraction' not in st.session_state:
+        st.session_state.refraction = {}
+    
+    # --- Vision Examination (Habitual & Uncorrected) ---
+    st.markdown("#### 1) Vision Examination — Habitual & Uncorrected")
+    with st.form("vision_exam_form"):
+        col_h1, col_h2, col_h3 = st.columns([2,2,1])
+        with col_h1:
+            st.markdown("**Habitual Correction**")
+            habitual_type = st.selectbox("Type of Habitual Correction", ["None", "Spectacles", "Soft Contact Lenses", "RGP", "Scleral", "Ortho-K", "Other"], index=0, key="habit_type")
+            habitual_od_va = st.text_input("Habitual VA OD", placeholder="e.g., 20/20")
+            habitual_os_va = st.text_input("Habitual VA OS", placeholder="e.g., 20/20")
+            habitual_binocular_va = st.text_input("Habitual Binocular VA", placeholder="e.g., 20/20")
+            habitual_pd = st.text_input("PD (mm)", placeholder="e.g., 62")
+        with col_h2:
+            st.markdown("**Uncorrected Vision**")
+            uncorrected_od_va = st.text_input("Uncorrected VA OD", placeholder="e.g., 20/80")
+            uncorrected_os_va = st.text_input("Uncorrected VA OS", placeholder="e.g., 20/80")
+            uncorrected_binocular_va = st.text_input("Uncorrected Binocular VA", placeholder="e.g., 20/60")
+        with col_h3:
+            st.markdown("**Other**")
+            vision_notes = st.text_area("Notes", height=150)
         
-        col_habit1, col_habit2 = st.columns(2)
-        
-        with col_habit1:
-            habitual_type = st.selectbox("Type of Current Correction*", 
-                                       ["None", "Spectacles", "Soft Contact Lenses", "RGP Contact Lenses", 
-                                        "Scleral Lenses", "Ortho-K", "Other"])
-            
-            st.markdown("**Right Eye (OD)**")
-            habitual_od_sph = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f")
-            habitual_od_cyl = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f")
-            habitual_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0)
-            habitual_od_add = st.number_input("Add OD", value=0.0, step=0.25, format="%.2f")
-            habitual_od_va = st.text_input("Visual Acuity OD*", placeholder="e.g., 20/20, 6/6, 0.0")
-        
-        with col_habit2:
-            st.markdown("**Left Eye (OS)**")
-            habitual_os_sph = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f")
-            habitual_os_cyl = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f")
-            habitual_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0)
-            habitual_os_add = st.number_input("Add OS", value=0.0, step=0.25, format="%.2f")
-            habitual_os_va = st.text_input("Visual Acuity OS*", placeholder="e.g., 20/20, 6/6, 0.0")
-            habitual_bin_va = st.text_input("Binocular Visual Acuity*", placeholder="e.g., 20/20, 6/6, 0.0")
-        
-        st.markdown("#### 2. Uncorrected Visual Acuity")
-        
-        col_uncorr = st.columns(3)
-        with col_uncorr[0]:
-            uncorrected_od_va = st.text_input("Uncorrected VA OD*", placeholder="20/20")
-        with col_uncorr[1]:
-            uncorrected_os_va = st.text_input("Uncorrected VA OS*", placeholder="20/20")
-        with col_uncorr[2]:
-            uncorrected_bin_va = st.text_input("Uncorrected Binocular VA*", placeholder="20/20")
-        
-        st.markdown("#### 3. Objective Refraction (Autorefractor)")
-        
-        col_obj = st.columns(2)
-        with col_obj[0]:
-            objective_time = st.text_input("Time of Measurement*", placeholder="HH:MM (24h format)")
-            st.markdown("**Right Eye (OD)**")
-            autorefractor_od_sph = st.number_input("Autorefractor Sphere OD", value=0.0, step=0.25, format="%.2f")
-            autorefractor_od_cyl = st.number_input("Autorefractor Cylinder OD", value=0.0, step=0.25, format="%.2f")
+        save_vision = st.form_submit_button("Save Vision Section & Continue")
+        if save_vision:
+            st.session_state.refraction.update({
+                'habitual_type': habitual_type,
+                'habitual_od_va': habitual_od_va,
+                'habitual_os_va': habitual_os_va,
+                'habitual_binocular_va': habitual_binocular_va,
+                'habitual_pd': habitual_pd,
+                'uncorrected_od_va': uncorrected_od_va,
+                'uncorrected_os_va': uncorrected_os_va,
+                'uncorrected_binocular_va': uncorrected_binocular_va,
+                'vision_notes': vision_notes
+            })
+            st.success("Vision section saved (locally). Continue to Objective Refraction.")
+            st.session_state.ref_section = "vision"
+            st.experimental_rerun()
+    
+    st.markdown("---")
+    # --- Objective Refraction ---
+    st.markdown("#### 2) Objective Refraction (Autorefractor / Retinoscopy)")
+    with st.form("objective_form"):
+        col_o1, col_o2 = st.columns(2)
+        with col_o1:
+            objective_method = st.selectbox("Objective Method", ["Autorefractor", "Retinoscopy", "Other"], index=0)
+            objective_time = st.time_input("Time of Measurement", value=datetime.now().time())
+            autorefractor_od_sphere = st.number_input("Autorefractor Sphere OD", value=0.0, step=0.25, format="%.2f")
+            autorefractor_od_cylinder = st.number_input("Autorefractor Cylinder OD", value=0.0, step=0.25, format="%.2f")
             autorefractor_od_axis = st.number_input("Autorefractor Axis OD", min_value=0, max_value=180, value=0)
-        
-        with col_obj[1]:
+        with col_o2:
             st.markdown("**Left Eye (OS)**")
-            autorefractor_os_sph = st.number_input("Autorefractor Sphere OS", value=0.0, step=0.25, format="%.2f")
-            autorefractor_os_cyl = st.number_input("Autorefractor Cylinder OS", value=0.0, step=0.25, format="%.2f")
+            autorefractor_os_sphere = st.number_input("Autorefractor Sphere OS", value=0.0, step=0.25, format="%.2f")
+            autorefractor_os_cylinder = st.number_input("Autorefractor Cylinder OS", value=0.0, step=0.25, format="%.2f")
             autorefractor_os_axis = st.number_input("Autorefractor Axis OS", min_value=0, max_value=180, value=0)
+            objective_notes = st.text_area("Objective Notes", height=120)
         
-        st.markdown("#### 4. Subjective Refraction")
-        
-        col_subj = st.columns(2)
-        with col_subj[0]:
-            subjective_method = st.selectbox("Refraction Method*", ["Fogging Technique", "With Cycloplegic"])
-            
-            if subjective_method == "With Cycloplegic":
-                cycloplegic_used = True
-                cycloplegic_type = st.text_input("Cycloplegic Agent*", placeholder="e.g., Cyclopentolate 1%")
+        save_objective = st.form_submit_button("Save Objective Section & Continue")
+        if save_objective:
+            st.session_state.refraction.update({
+                'objective_method': objective_method,
+                'objective_time': objective_time.strftime("%H:%M"),
+                'autorefractor_od_sphere': autorefractor_od_sphere,
+                'autorefractor_od_cylinder': autorefractor_od_cylinder,
+                'autorefractor_od_axis': autorefractor_od_axis,
+                'autorefractor_os_sphere': autorefractor_os_sphere,
+                'autorefractor_os_cylinder': autorefractor_os_cylinder,
+                'autorefractor_os_axis': autorefractor_os_axis,
+                'objective_notes': objective_notes
+            })
+            st.success("Objective refraction data saved (locally). Continue to Subjective Refraction.")
+            st.session_state.ref_section = "objective"
+            st.experimental_rerun()
+    
+    st.markdown("---")
+    # --- Cycloplegic (if used) & Subjective Monocular Refraction ---
+    st.markdown("#### 3) Cycloplegic (if used) & Subjective Monocular Refraction")
+    with st.form("subjective_form"):
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            subjective_method = st.selectbox("Subjective Method", ["Fogging", "With Cycloplegic", "Other"], index=0)
+            cycloplegic_used = True if subjective_method == "With Cycloplegic" else False
+            if cycloplegic_used:
+                cycloplegic_agent = st.text_input("Cycloplegic Agent", placeholder="e.g., Cyclopentolate 1%")
                 cycloplegic_lot = st.text_input("Lot Number")
                 cycloplegic_expiry = st.date_input("Expiry Date")
-                cycloplegic_drops = st.number_input("Number of Drops", min_value=1, max_value=4, value=1)
+                cycloplegic_drops = st.number_input("Number of Drops", min_value=1, max_value=10, value=1)
             else:
-                cycloplegic_used = False
-                cycloplegic_type = None
-                cycloplegic_lot = None
+                cycloplegic_agent = ""
+                cycloplegic_lot = ""
                 cycloplegic_expiry = None
                 cycloplegic_drops = None
             
             st.markdown("**Right Eye (OD)**")
-            subjective_od_sph = st.number_input("Subjective Sphere OD*", value=0.0, step=0.25, format="%.2f")
-            subjective_od_cyl = st.number_input("Subjective Cylinder OD", value=0.0, step=0.25, format="%.2f")
+            subjective_od_sphere = st.number_input("Subjective Sphere OD", value=0.0, step=0.25, format="%.2f")
+            subjective_od_cylinder = st.number_input("Subjective Cylinder OD", value=0.0, step=0.25, format="%.2f")
             subjective_od_axis = st.number_input("Subjective Axis OD", min_value=0, max_value=180, value=0)
-        
-        with col_subj[1]:
+        with col_s2:
             st.markdown("**Left Eye (OS)**")
-            subjective_os_sph = st.number_input("Subjective Sphere OS*", value=0.0, step=0.25, format="%.2f")
-            subjective_os_cyl = st.number_input("Subjective Cylinder OS", value=0.0, step=0.25, format="%.2f")
+            subjective_os_sphere = st.number_input("Subjective Sphere OS", value=0.0, step=0.25, format="%.2f")
+            subjective_os_cylinder = st.number_input("Subjective Cylinder OS", value=0.0, step=0.25, format="%.2f")
             subjective_os_axis = st.number_input("Subjective Axis OS", min_value=0, max_value=180, value=0)
+            subjective_notes = st.text_area("Subjective Notes", height=150)
         
-        st.markdown("#### 5. Binocular Vision Assessment")
+        save_subjective = st.form_submit_button("Save Subjective Section & Continue")
+        if save_subjective:
+            st.session_state.refraction.update({
+                'subjective_method': subjective_method,
+                'cycloplegic_used': cycloplegic_used,
+                'cycloplegic_agent': cycloplegic_agent,
+                'cycloplegic_lot': cycloplegic_lot,
+                'cycloplegic_expiry': cycloplegic_expiry,
+                'cycloplegic_drops': cycloplegic_drops,
+                'subjective_od_sphere': subjective_od_sphere,
+                'subjective_od_cylinder': subjective_od_cylinder,
+                'subjective_od_axis': subjective_od_axis,
+                'subjective_os_sphere': subjective_os_sphere,
+                'subjective_os_cylinder': subjective_os_cylinder,
+                'subjective_os_axis': subjective_os_axis,
+                'subjective_notes': subjective_notes
+            })
+            st.success("Subjective refraction saved (locally). Continue to Binocular & Final Prescription.")
+            st.session_state.ref_section = "subjective"
+            st.experimental_rerun()
+    
+    st.markdown("---")
+    # --- Binocular Tests & Final Prescription ---
+    st.markdown("#### 4) Binocular Tests & Final Prescription")
+    with st.form("binocular_form"):
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            binocular_balance = st.selectbox("Binocular Balance", ["Balanced", "OD dominant", "OS dominant", "Unbalanced"], index=0)
+            stereopsis = st.text_input("Stereoacuity", placeholder="e.g., 40 arc sec")
+            npc_break = st.text_input("NPC Break", placeholder="e.g., 6 cm")
+            npc_recovery = st.text_input("NPC Recovery", placeholder="e.g., 8 cm")
+            binocular_tests = st.text_area("Binocular Tests (phoria, cover tests, Worth, etc.)", height=140)
+        with col_b2:
+            st.markdown("**Final Prescription**")
+            final_od_sph = st.number_input("Final Sphere OD", value=0.0, step=0.25, format="%.2f")
+            final_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f")
+            final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0)
+            final_os_sph = st.number_input("Final Sphere OS", value=0.0, step=0.25, format="%.2f")
+            final_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f")
+            final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0)
+            final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 20/20")
+            bvp = st.text_input("BVP", placeholder="Binocular Visual Performance")
+            pinhole = st.text_input("Pinhole", placeholder="Pinhole VA")
+            prescription_notes = st.text_area("Prescription Notes / Rationale", height=140)
         
-        binocular_balance = st.selectbox("Binocular Balance*", 
-                                       ["Balanced", "OD dominant", "OS dominant", "Unbalanced"])
-        stereopsis = st.text_input("Stereoacuity", placeholder="e.g., 40 arc seconds")
-        near_point_convergence = st.text_input("Near Point of Convergence", placeholder="e.g., 6 cm")
-        near_point_accommodation = st.text_input("Near Point of Accommodation", placeholder="e.g., 8 cm")
-        
-        st.markdown("#### 6. Final Prescription")
-        
-        col_pres = st.columns(2)
-        with col_pres[0]:
-            st.markdown("**Right Eye (OD)**")
-            prescribed_od_sph = st.number_input("Final Sphere OD*", value=0.0, step=0.25, format="%.2f")
-            prescribed_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f")
-            prescribed_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0)
-            prescribed_od_add = st.number_input("Final Add OD", value=0.0, step=0.25, format="%.2f")
-            prescribed_od_va = st.text_input("Final VA OD*", placeholder="20/20")
-        
-        with col_pres[1]:
-            st.markdown("**Left Eye (OS)**")
-            prescribed_os_sph = st.number_input("Final Sphere OS*", value=0.0, step=0.25, format="%.2f")
-            prescribed_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f")
-            prescribed_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0)
-            prescribed_os_add = st.number_input("Final Add OS", value=0.0, step=0.25, format="%.2f")
-            prescribed_os_va = st.text_input("Final VA OS*", placeholder="20/20")
-        
-        prescribed_bin_va = st.text_input("Final Binocular VA*", placeholder="20/20")
-        prescription_notes = st.text_area("Prescription Notes & Rationale", 
-                                        placeholder="Clinical reasoning, special considerations, anisometropia management...",
-                                        height=80)
-        
-        st.markdown("---")
-        submit_refraction = st.form_submit_button("💾 Save Refraction & Continue to Functional Tests", 
-                                                use_container_width=True)
-        
-        if submit_refraction:
-            # Validate required fields
-            required_fields = [
-                habitual_od_va, habitual_os_va, habitual_bin_va,
-                uncorrected_od_va, uncorrected_os_va, uncorrected_bin_va,
-                objective_time, prescribed_od_va, prescribed_os_va, prescribed_bin_va
-            ]
+        save_binocular = st.form_submit_button("Save Binocular & Prescription (Finalize Refraction)")
+        if save_binocular:
+            # Validate minimal required fields for refraction finalization
+            # We accept many optional fields, but ensure at least first/last name & date of birth exist for patient (registration ensures that)
+            st.session_state.refraction.update({
+                'binocular_balance': binocular_balance,
+                'stereopsis': stereopsis,
+                'near_point_convergence_break': npc_break,
+                'near_point_convergence_recovery': npc_recovery,
+                'binocular_tests': binocular_tests,
+                'final_prescribed_od_sphere': final_od_sph,
+                'final_prescribed_od_cylinder': final_od_cyl,
+                'final_prescribed_od_axis': final_od_axis,
+                'final_prescribed_os_sphere': final_os_sph,
+                'final_prescribed_os_cylinder': final_os_cyl,
+                'final_prescribed_os_axis': final_os_axis,
+                'final_prescribed_binocular_va': final_bin_va,
+                'bvp': bvp,
+                'pinhole': pinhole,
+                'prescription_notes': prescription_notes
+            })
             
-            if any(not field for field in required_fields):
-                st.error("❌ Please complete all required fields (marked with *)")
-            else:
-                try:
-                    patient_info = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]
-                    
-                    c = conn.cursor()
-                    c.execute('''
-                        INSERT INTO refraction_exams 
-                        (patient_id, habitual_correction_type, habitual_od_sphere, habitual_od_cylinder, habitual_od_axis,
-                         habitual_od_add, habitual_od_va, habitual_os_sphere, habitual_os_cylinder, habitual_os_axis,
-                         habitual_os_add, habitual_os_va, habitual_binocular_va, uncorrected_od_va, uncorrected_os_va,
-                         uncorrected_binocular_va, objective_refraction_time, autorefractor_od_sphere, autorefractor_od_cylinder,
-                         autorefractor_od_axis, autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis,
-                         subjective_method, cycloplegic_used, cycloplegic_type, cycloplegic_lot, cycloplegic_expiry,
-                         cycloplegic_drops, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis,
-                         subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, binocular_balance,
-                         stereopsis, near_point_convergence, near_point_accommodation, prescribed_od_sphere,
-                         prescribed_od_cylinder, prescribed_od_axis, prescribed_od_add, prescribed_od_va,
-                         prescribed_os_sphere, prescribed_os_cylinder, prescribed_os_axis, prescribed_os_add,
-                         prescribed_os_va, prescribed_binocular_va, prescription_notes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (patient_info['id'], habitual_type, habitual_od_sph, habitual_od_cyl, habitual_od_axis,
-                         habitual_od_add, habitual_od_va, habitual_os_sph, habitual_os_cyl, habitual_os_axis,
-                         habitual_os_add, habitual_os_va, habitual_bin_va, uncorrected_od_va, uncorrected_os_va,
-                         uncorrected_bin_va, objective_time, autorefractor_od_sph, autorefractor_od_cyl,
-                         autorefractor_od_axis, autorefractor_os_sph, autorefractor_os_cyl, autorefractor_os_axis,
-                         subjective_method, cycloplegic_used, cycloplegic_type, cycloplegic_lot, cycloplegic_expiry,
-                         cycloplegic_drops, subjective_od_sph, subjective_od_cyl, subjective_od_axis,
-                         subjective_os_sph, subjective_os_cyl, subjective_os_axis, binocular_balance,
-                         stereopsis, near_point_convergence, near_point_accommodation, prescribed_od_sph,
-                         prescribed_od_cyl, prescribed_od_axis, prescribed_od_add, prescribed_od_va,
-                         prescribed_os_sph, prescribed_os_cyl, prescribed_os_axis, prescribed_os_add,
-                         prescribed_os_va, prescribed_bin_va, prescription_notes))
-                    
-                    conn.commit()
-                    st.success("✅ Comprehensive refraction examination saved successfully!")
-                    
-                    # Auto-navigate to functional tests
-                    st.session_state.exam_step = "functional_tests"
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"❌ Database error: {str(e)}")
+            # Insert final refraction record in DB
+            try:
+                c = conn.cursor()
+                # Get internal patient id
+                p = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]
+                pid = p['id']
+                
+                # Compose uploaded files list if present in session refraction (like images)
+                uploaded_files = st.session_state.refraction.get('uploaded_files', [])
+                c.execute('''
+                    INSERT INTO refraction_exams
+                    (patient_id, habitual_type, habitual_od_va, habitual_os_va, habitual_binocular_va, habitual_pd, habitual_notes,
+                     uncorrected_od_va, uncorrected_os_va, uncorrected_binocular_va,
+                     objective_method, objective_time,
+                     autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
+                     autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis,
+                     cycloplegic_used, cycloplegic_agent, cycloplegic_lot, cycloplegic_expiry, cycloplegic_drops,
+                     cycloplegic_objective_od, cycloplegic_objective_os,
+                     subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis,
+                     subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_notes,
+                     binocular_balance, stereopsis, near_point_convergence_break, near_point_convergence_recovery,
+                     final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis,
+                     final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
+                     final_prescribed_binocular_va, bvp, pinhole, prescription_notes,
+                     binocular_tests, functional_tests, accommodation_tests, uploaded_files)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    pid,
+                    st.session_state.refraction.get('habitual_type'),
+                    st.session_state.refraction.get('habitual_od_va'),
+                    st.session_state.refraction.get('habitual_os_va'),
+                    st.session_state.refraction.get('habitual_binocular_va'),
+                    st.session_state.refraction.get('habitual_pd'),
+                    st.session_state.refraction.get('vision_notes'),
+                    st.session_state.refraction.get('uncorrected_od_va'),
+                    st.session_state.refraction.get('uncorrected_os_va'),
+                    st.session_state.refraction.get('uncorrected_binocular_va'),
+                    st.session_state.refraction.get('objective_method'),
+                    st.session_state.refraction.get('objective_time'),
+                    st.session_state.refraction.get('autorefractor_od_sphere'),
+                    st.session_state.refraction.get('autorefractor_od_cylinder'),
+                    st.session_state.refraction.get('autorefractor_od_axis'),
+                    st.session_state.refraction.get('autorefractor_os_sphere'),
+                    st.session_state.refraction.get('autorefractor_os_cylinder'),
+                    st.session_state.refraction.get('autorefractor_os_axis'),
+                    st.session_state.refraction.get('cycloplegic_used'),
+                    st.session_state.refraction.get('cycloplegic_agent'),
+                    st.session_state.refraction.get('cycloplegic_lot'),
+                    st.session_state.refraction.get('cycloplegic_expiry'),
+                    st.session_state.refraction.get('cycloplegic_drops'),
+                    st.session_state.refraction.get('cycloplegic_objective_od'),
+                    st.session_state.refraction.get('cycloplegic_objective_os'),
+                    st.session_state.refraction.get('subjective_method'),
+                    st.session_state.refraction.get('subjective_od_sphere'),
+                    st.session_state.refraction.get('subjective_od_cylinder'),
+                    st.session_state.refraction.get('subjective_od_axis'),
+                    st.session_state.refraction.get('subjective_os_sphere'),
+                    st.session_state.refraction.get('subjective_os_cylinder'),
+                    st.session_state.refraction.get('subjective_os_axis'),
+                    st.session_state.refraction.get('subjective_notes'),
+                    st.session_state.refraction.get('binocular_balance'),
+                    st.session_state.refraction.get('stereopsis'),
+                    st.session_state.refraction.get('near_point_convergence_break'),
+                    st.session_state.refraction.get('near_point_convergence_recovery'),
+                    st.session_state.refraction.get('final_prescribed_od_sphere'),
+                    st.session_state.refraction.get('final_prescribed_od_cylinder'),
+                    st.session_state.refraction.get('final_prescribed_od_axis'),
+                    st.session_state.refraction.get('final_prescribed_os_sphere'),
+                    st.session_state.refraction.get('final_prescribed_os_cylinder'),
+                    st.session_state.refraction.get('final_prescribed_os_axis'),
+                    st.session_state.refraction.get('final_prescribed_binocular_va'),
+                    st.session_state.refraction.get('bvp'),
+                    st.session_state.refraction.get('pinhole'),
+                    st.session_state.refraction.get('prescription_notes'),
+                    st.session_state.refraction.get('binocular_tests'),
+                    st.session_state.refraction.get('functional_tests'),
+                    st.session_state.refraction.get('accommodation_tests'),
+                    json.dumps(uploaded_files)
+                ))
+                conn.commit()
+                st.success("✅ Refraction examination saved to database.")
+                
+                # Advance workflow
+                st.session_state.exam_step = "functional_tests"
+                # clear session refraction bucket to avoid duplicate writes
+                st.session_state.refraction = {}
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"❌ Database error when saving refraction: {str(e)}")
 
-# [OSTALE FUNKCIJE - functional_tests(), anterior_segment_examination(), posterior_segment_examination(), contact_lenses(), itd.]
-
-# Placeholder for other complete functions
+# Placeholder modules for Functional, Accommodation, Biomicroscopy, Anterior/Posterior segments (flow continues)
 def functional_tests():
     st.subheader("🧪 Functional Vision Tests")
-    st.info("Complete functional tests module implementation...")
-    
-    if st.button("Continue to Anterior Segment Examination", use_container_width=True):
-        st.session_state.exam_step = "anterior_segment"
-        st.rerun()
+    if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
+        st.error("❌ No patient selected.")
+        return
+    patient_id = st.session_state.selected_patient
+    with st.form("functional_tests_form"):
+        st.markdown("#### Functional Tests — Motility, Hirschberg, NPC, Pupils, Visual Fields")
+        col1, col2 = st.columns(2)
+        with col1:
+            motility = st.text_area("Ocular Motility (notes)", height=120)
+            hirschberg = st.text_input("Hirschberg result")
+            npc_break = st.text_input("NPC Break")
+            npc_recovery = st.text_input("NPC Recovery")
+        with col2:
+            pupils = st.text_input("Pupils (size/reactivity)")
+            rapd = st.selectbox("RAPD", ["None", "Present", "Unsure"])
+            confrontation = st.text_area("Confrontation Visual Field", height=120)
+            functional_notes = st.text_area("Functional Notes", height=80)
+        save_func = st.form_submit_button("Save Functional Tests & Continue")
+        if save_func:
+            try:
+                p = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]
+                c = conn.cursor()
+                c.execute('''
+                    INSERT INTO functional_tests (patient_id, motility, hirschberg, cover_test_distance, cover_test_near, pupils, confrontation_fields, other_notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (p['id'], motility, hirschberg, npc_break, npc_recovery, pupils, confrontation, functional_notes))
+                conn.commit()
+                st.success("✅ Functional tests saved.")
+                st.session_state.exam_step = "anterior_segment"
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Database error: {str(e)}")
 
 def anterior_segment_examination():
-    st.subheader("🔬 Anterior Segment Examination")
-    st.info("Complete anterior segment examination module implementation...")
-    
-    if st.button("Continue to Posterior Segment Examination", use_container_width=True):
-        st.session_state.exam_step = "posterior_segment"
-        st.rerun()
+    st.subheader("🔬 Anterior Segment Examination & Biomicroscopy")
+    if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
+        st.error("❌ No patient selected.")
+        return
+    patient_id = st.session_state.selected_patient
+    with st.form("anterior_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            biomicroscopy_od = st.text_area("Biomicroscopy OD", height=120)
+            biomicroscopy_os = st.text_area("Biomicroscopy OS", height=120)
+            biomicroscopy_notes = st.text_area("Biomicroscopy Notes", height=80)
+        with col2:
+            acd_od = st.text_input("AC Depth OD")
+            acd_os = st.text_input("AC Depth OS")
+            acv_od = st.text_input("AC Volume OD")
+            acv_os = st.text_input("AC Volume OS")
+            iridocorneal_od = st.text_input("Iridocorneal Angle OD")
+            iridocorneal_os = st.text_input("Iridocorneal Angle OS")
+        files = st.file_uploader("Upload images/reports (slit lamp, pachymetry, topography)", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True)
+        save_anterior = st.form_submit_button("Save Anterior Segment & Continue")
+        if save_anterior:
+            try:
+                p = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]
+                file_paths = []
+                if files:
+                    os.makedirs("uploads", exist_ok=True)
+                    for f in files:
+                        path = os.path.join("uploads", f"{datetime.now().timestamp()}_{f.name}")
+                        with open(path, "wb") as fp:
+                            fp.write(f.getbuffer())
+                        file_paths.append(path)
+                c = conn.cursor()
+                c.execute('''
+                    INSERT INTO anterior_segment_exams
+                    (patient_id, biomicroscopy_od, biomicroscopy_os, biomicroscopy_notes, anterior_chamber_depth_od, anterior_chamber_depth_os,
+                     anterior_chamber_volume_od, anterior_chamber_volume_os, iridocorneal_angle_od, iridocorneal_angle_os, uploaded_files)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (p['id'], biomicroscopy_od, biomicroscopy_os, biomicroscopy_notes, acd_od, acd_os, acv_od, acv_os, iridocorneal_od, iridocorneal_os, json.dumps(file_paths)))
+                conn.commit()
+                st.success("✅ Anterior segment saved.")
+                st.session_state.exam_step = "posterior_segment"
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Database error: {str(e)}")
 
 def posterior_segment_examination():
-    st.subheader("👁️ Posterior Segment Examination")
-    st.info("Complete posterior segment examination module implementation...")
-    
-    if st.button("Continue to Contact Lens Fitting", use_container_width=True):
-        st.session_state.exam_step = "contact_lenses"
-        st.rerun()
+    st.subheader("👁️ Posterior Segment Examination & Imaging")
+    if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
+        st.error("❌ No patient selected.")
+        return
+    patient_id = st.session_state.selected_patient
+    with st.form("posterior_form"):
+        fundus_type = st.selectbox("Fundus Exam Type", ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Other"])
+        fundus_od = st.text_area("Fundus OD findings", height=120)
+        fundus_os = st.text_area("Fundus OS findings", height=120)
+        fundus_notes = st.text_area("Fundus Notes", height=80)
+        pupillography = st.text_area("Pupillography / Pupillometry results", height=80)
+        oct_uploads = st.file_uploader("Upload OCT / fundus images (pdf/png/jpg)", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True)
+        save_posterior = st.form_submit_button("Save Posterior Segment & Finish Exam")
+        if save_posterior:
+            try:
+                p = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]
+                file_paths = []
+                if oct_uploads:
+                    os.makedirs("uploads", exist_ok=True)
+                    for f in oct_uploads:
+                        path = os.path.join("uploads", f"{datetime.now().timestamp()}_{f.name}")
+                        with open(path, "wb") as fp:
+                            fp.write(f.getbuffer())
+                        file_paths.append(path)
+                c = conn.cursor()
+                c.execute('''
+                    INSERT INTO posterior_segment_exams (patient_id, fundus_exam_type, fundus_od, fundus_os, fundus_notes, pupillography_results, uploaded_files)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (p['id'], fundus_type, fundus_od, fundus_os, fundus_notes, pupillography, json.dumps(file_paths)))
+                conn.commit()
+                st.success("✅ Posterior segment & imaging saved.")
+                # After finishing exam, allow assigning group or scheduling follow-up
+                st.session_state.exam_step = None
+                st.session_state.selected_patient = None
+                st.session_state.menu = "Dashboard"
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"❌ Database error: {str(e)}")
 
-def contact_lenses():
-    st.subheader("👓 Contact Lens Fitting & Prescription")
-    st.info("Complete contact lens fitting module implementation...")
-    
-    if st.button("Complete Examination & Generate Report", use_container_width=True):
-        st.session_state.exam_step = "generate_report"
-        st.rerun()
-
-def generate_report():
-    st.subheader("📄 Generate Clinical Report")
-    st.info("Complete report generation module implementation...")
-    
-    if st.button("Return to Dashboard", use_container_width=True):
-        st.session_state.exam_step = None
-        st.session_state.selected_patient = None
-        st.session_state.menu = "Dashboard"
-        st.success("✅ Examination completed successfully!")
-        st.rerun()
-
-# PATIENT REGISTRATION - Complete professional registration
+# PATIENT REGISTRATION - changed to require only First Name, Last Name, Date of Birth (auto Patient ID)
 def patient_registration():
     st.subheader("👤 New Patient Registration")
     
@@ -1035,16 +1103,16 @@ def patient_registration():
         col1, col2 = st.columns(2)
         
         with col1:
-            patient_id = st.text_input("Patient ID*", placeholder="Unique identifier (e.g., PAT2024001)")
+            patient_id = st.text_input("Patient ID (optional)", placeholder="Unique identifier (auto-generated if empty)")
             first_name = st.text_input("First Name*", placeholder="Legal first name")
             last_name = st.text_input("Last Name*", placeholder="Legal last name")
             date_of_birth = st.date_input("Date of Birth*", 
                                         value=datetime.now() - timedelta(days=365*30),
                                         max_value=datetime.now())
-            gender = st.selectbox("Gender*", ["Male", "Female", "Other", "Prefer not to say"])
+            gender = st.selectbox("Gender", ["Male", "Female", "Other", "Prefer not to say"])
         
         with col2:
-            phone = st.text_input("Phone Number*", placeholder="+1234567890")
+            phone = st.text_input("Phone Number", placeholder="+1234567890")
             email = st.text_input("Email Address", placeholder="patient@example.com")
             address = st.text_area("Home Address", placeholder="Full residential address", height=60)
             id_number = st.text_input("ID Number", placeholder="National ID or passport number")
@@ -1060,10 +1128,16 @@ def patient_registration():
         submit_button = st.form_submit_button("Register New Patient", use_container_width=True)
         
         if submit_button:
-            if not all([patient_id, first_name, last_name, phone]):
-                st.error("❌ Please complete all required fields (marked with *)")
+            # Only first_name, last_name and date_of_birth are required
+            if not all([first_name, last_name, date_of_birth]):
+                st.error("❌ Please enter at least First Name, Last Name and Date of Birth.")
             else:
                 try:
+                    # Auto-generate patient_id if empty
+                    if not patient_id:
+                        ts = int(datetime.now().timestamp())
+                        patient_id = f"PAT{ts}"
+                    
                     c = conn.cursor()
                     c.execute('''
                         INSERT INTO patients 
@@ -1072,7 +1146,7 @@ def patient_registration():
                     ''', (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address, id_number, emergency_contact, insurance_info))
                     
                     conn.commit()
-                    st.success(f"✅ Patient {first_name} {last_name} registered successfully!")
+                    st.success(f"✅ Patient {first_name} {last_name} registered successfully! (ID: {patient_id})")
                     
                 except sqlite3.IntegrityError:
                     st.error("❌ Patient ID already exists. Please use a unique identifier.")
@@ -1148,7 +1222,7 @@ def patient_search():
                         with col_actions[1]:
                             if st.button("View History", key=f"history_{patient['id']}", use_container_width=True):
                                 st.session_state.selected_patient = patient['patient_id']
-                                st.session_state.menu = "Patient History"
+                                st.session_state.menu = "Patient Search"
                                 st.rerun()
                         
                         with col_actions[2]:
@@ -1192,7 +1266,7 @@ def main_navigation():
     ]
     
     menu = st.sidebar.selectbox("Clinical Navigation", menu_options, 
-                              index=menu_options.index(st.session_state.menu))
+                              index=menu_options.index(st.session_state.menu) if st.session_state.menu in menu_options else 0)
     
     st.session_state.menu = menu
     
@@ -1219,8 +1293,8 @@ def main_navigation():
     
     # User info
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"**Clinician:** {st.session_state.username}")
-    st.sidebar.markdown(f"**Role:** {st.session_state.role}")
+    st.sidebar.markdown(f"**Clinician:** {st.session_state.get('username', '')}")
+    st.sidebar.markdown(f"**Role:** {st.session_state.get('role', '')}")
     
     # Render current page
     if st.session_state.exam_step:
@@ -1257,6 +1331,29 @@ def main_navigation():
             st.info("Patient groups management - Implementation in progress")
         elif menu == "System Settings":
             st.info("System settings module - Implementation in progress")
+
+# Placeholder for contact lenses and generate_report functions
+def contact_lenses():
+    st.subheader("👓 Contact Lens Fitting & Prescription")
+    st.info("Contact lens module — implement soft/RGP/scleral inputs and fitting notes here.")
+    if st.button("Return to Dashboard", use_container_width=True):
+        st.session_state.menu = "Dashboard"
+        st.session_state.selected_patient = None
+        st.rerun()
+
+def generate_report():
+    st.subheader("📄 Generate Clinical Report")
+    st.info("Report generation — choose which sections to include (summary + custom notes).")
+    patient = st.session_state.get('selected_patient', None)
+    if not patient:
+        st.info("Select a patient first.")
+        return
+    if st.button("Return to Dashboard", use_container_width=True):
+        st.session_state.exam_step = None
+        st.session_state.selected_patient = None
+        st.session_state.menu = "Dashboard"
+        st.success("✅ Examination workflow closed.")
+        st.rerun()
 
 # LOGIN PAGE - Professional login
 def login_page():
@@ -1299,7 +1396,7 @@ def login_page():
                         st.session_state.logged_in = True
                         st.session_state.username = user[0]
                         st.session_state.role = user[2]
-                        st.success(f"🔓 Access granted. Welcome Dr. {user[0]}!")
+                        st.success(f"🔓 Access granted. Welcome {user[0]}!")
                         st.rerun()
                     else:
                         st.error(f"❌ {message}")
