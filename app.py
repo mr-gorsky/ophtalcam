@@ -73,29 +73,47 @@ def init_db():
             except Exception as e:
                 print(f"⚠ Could not add column {col}: {e}")
     
-    # Medical History table - COMPLETE
+    # Medical History table - COMPLETE + auto-migration
     c.execute('''
         CREATE TABLE IF NOT EXISTS medical_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            
+            -- General Health
             general_health TEXT,
             current_medications TEXT,
             allergies TEXT,
             headaches_history TEXT,
             family_history TEXT,
+            
+            -- Ocular History
             ocular_history TEXT,
             previous_surgeries TEXT,
             eye_medications TEXT,
             last_eye_exam DATE,
+            
+            -- Social History
             smoking_status TEXT,
             alcohol_consumption TEXT,
             occupation TEXT,
             hobbies TEXT,
+
+            -- Uploaded reports
             uploaded_reports TEXT,
+
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
+
+    # --- AUTO-MIGRATION: add missing columns if table exists ---
+    c.execute("PRAGMA table_info(medical_history)")
+    existing_cols = [col[1] for col in c.fetchall()]
+    if "uploaded_reports" not in existing_cols:
+        try:
+            c.execute("ALTER TABLE medical_history ADD COLUMN uploaded_reports TEXT")
+        except Exception as e:
+            print(f"⚠ Could not add column uploaded_reports: {e}")
     
     # Refraction Examination table - expanded to match Figma fields
     c.execute('''
@@ -1487,4 +1505,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
