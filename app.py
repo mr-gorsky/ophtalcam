@@ -784,7 +784,8 @@ def refraction_examination():
             })
             st.success("Vision section saved (locally). Continue to Objective Refraction.")
             st.session_state.ref_section = "vision"
-            st.experimental_rerun()
+            st.rerun()
+
     
     st.markdown("---")
     # --- Objective Refraction ---
@@ -819,7 +820,8 @@ def refraction_examination():
             })
             st.success("Objective refraction data saved (locally). Continue to Subjective Refraction.")
             st.session_state.ref_section = "objective"
-            st.experimental_rerun()
+            st.rerun()
+
     
     st.markdown("---")
     # --- Cycloplegic (if used) & Subjective Monocular Refraction ---
@@ -870,7 +872,8 @@ def refraction_examination():
             })
             st.success("Subjective refraction saved (locally). Continue to Binocular & Final Prescription.")
             st.session_state.ref_section = "subjective"
-            st.experimental_rerun()
+            st.rerun()
+
     
     st.markdown("---")
     # --- Binocular Tests & Final Prescription ---
@@ -1004,7 +1007,8 @@ def refraction_examination():
                 st.session_state.exam_step = "functional_tests"
                 # clear session refraction bucket to avoid duplicate writes
                 st.session_state.refraction = {}
-                st.experimental_rerun()
+                st.rerun()
+
             except Exception as e:
                 st.error(f"❌ Database error when saving refraction: {str(e)}")
 
@@ -1126,7 +1130,8 @@ def posterior_segment_examination():
                 st.session_state.exam_step = None
                 st.session_state.selected_patient = None
                 st.session_state.menu = "Dashboard"
-                st.experimental_rerun()
+                st.rerun()
+
             except Exception as e:
                 st.error(f"❌ Database error: {str(e)}")
 
@@ -1505,5 +1510,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
