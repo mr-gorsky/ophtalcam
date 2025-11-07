@@ -204,6 +204,19 @@ def load_css():
         border-left: 4px solid #1f77b4;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .ophtalcam-btn {
+        background-color: #1f77b4;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        font-weight: 500;
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    .ophtalcam-btn:hover {
+        background-color: #1668a0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -262,7 +275,234 @@ def login_page():
         </div>
         """, unsafe_allow_html=True)
 
-# Calendar component
+# Medical examination - PREPRAVLJENA FUNKCIJA
+def medical_examination():
+    st.subheader("Protokol oftalmološkog pregleda")
+    
+    # Odabir pacijenta
+    conn = init_db()
+    patients = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
+    
+    if patients.empty:
+        st.warning("Nema registriranih pacijenata. Molimo prvo registrirajte pacijenta.")
+        return
+    
+    patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients.iterrows()]
+    selected_patient = st.selectbox("Odaberite pacijenta*", [""] + patient_options)
+    
+    if not selected_patient:
+        st.info("Odaberite pacijenta za nastavak pregleda")
+        return
+
+    # Session state za OphtalCAM tipke
+    if 'tono_od_clicked' not in st.session_state:
+        st.session_state.tono_od_clicked = False
+    if 'tono_os_clicked' not in st.session_state:
+        st.session_state.tono_os_clicked = False
+    if 'bio_od_clicked' not in st.session_state:
+        st.session_state.bio_od_clicked = False
+    if 'bio_os_clicked' not in st.session_state:
+        st.session_state.bio_os_clicked = False
+    if 'oft_od_clicked' not in st.session_state:
+        st.session_state.oft_od_clicked = False
+    if 'oft_os_clicked' not in st.session_state:
+        st.session_state.oft_os_clicked = False
+
+    # OphtalCAM tipke IZVAN forme
+    st.markdown("### OphtalCAM Uređaji")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🔄 OPHTHALCAM TONOMETRIJA", key="tono_global", use_container_width=True):
+            st.session_state.tono_od_clicked = True
+            st.session_state.tono_os_clicked = True
+            st.info("Tonometrija uređaj će se aktivirati u budućoj verziji")
+    
+    with col2:
+        if st.button("🔍 OPHTHALCAM BIOMIKROSKOPIJA", key="bio_global", use_container_width=True):
+            st.session_state.bio_od_clicked = True
+            st.session_state.bio_os_clicked = True
+            st.info("Biomikroskopija uređaj će se aktivirati u budućoj verziji")
+    
+    with col3:
+        if st.button("👁️ OPHTHALCAM OFTALMOSKOPIJA", key="oft_global", use_container_width=True):
+            st.session_state.oft_od_clicked = True
+            st.session_state.oft_os_clicked = True
+            st.info("Oftalmoskopija uređaj će se aktivirati u budućoj verziji")
+
+    st.markdown("---")
+
+    # FORMA za unos podataka
+    with st.form("examination_form"):
+        # 1. ANAMNESA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Anamneza")
+        anamneza = st.text_area("Opis anamneze", placeholder="Unesite podatke iz anamneze...", height=100)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 2. VIZUS
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Vizus")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**OD (Desno oko)**")
+            vizus_od_udaljenog_bez_corr_od = st.text_input("Udaljeni bez korekcije OD", placeholder="npr. 0.8", key="vizus_od_1")
+            vizus_od_udaljenog_sa_corr_od = st.text_input("Udaljeni sa korekcijom OD", placeholder="npr. 1.0", key="vizus_od_2")
+            vizus_iz_bliza_od = st.text_input("Blizu OD", placeholder="npr. 0.8", key="vizus_od_3")
+            
+        with col2:
+            st.write("**OS (Lijevo oko)**")
+            vizus_od_udaljenog_bez_corr_os = st.text_input("Udaljeni bez korekcije OS", placeholder="npr. 0.6", key="vizus_os_1")
+            vizus_od_udaljenog_sa_corr_os = st.text_input("Udaljeni sa korekcijom OS", placeholder="npr. 1.0", key="vizus_os_2")
+            vizus_iz_bliza_os = st.text_input("Blizu OS", placeholder="npr. 0.6", key="vizus_os_3")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 3. TONOMETRIJA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Tonometrija")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**OD (Desno oko)**")
+            if st.session_state.tono_od_clicked:
+                st.success("✅ Tonometrija OD - uređaj aktiviran")
+            tonometrija_od = st.text_input("Vrijednost OD (mmHg)", placeholder="npr. 16", key="tono_od")
+            
+        with col2:
+            st.write("**OS (Lijevo oko)**")
+            if st.session_state.tono_os_clicked:
+                st.success("✅ Tonometrija OS - uređaj aktiviran")
+            tonometrija_os = st.text_input("Vrijednost OS (mmHg)", placeholder="npr. 17", key="tono_os")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 4. BIOMIKROSKOPIJA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Biomikroskopija")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**OD (Desno oko)**")
+            if st.session_state.bio_od_clicked:
+                st.success("✅ Biomikroskopija OD - uređaj aktiviran")
+            biomikroskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz biomikroskopije za desno oko...", height=100, key="bio_od")
+            
+        with col2:
+            st.write("**OS (Lijevo oko)**")
+            if st.session_state.bio_os_clicked:
+                st.success("✅ Biomikroskopija OS - uređaj aktiviran")
+            biomikroskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz biomikroskopije za lijevo oko...", height=100, key="bio_os")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 5. OFTALMOSKOPIJA
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Oftalmoskopija")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**OD (Desno oko)**")
+            if st.session_state.oft_od_clicked:
+                st.success("✅ Oftalmoskopija OD - uređaj aktiviran")
+            oftalmoskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz oftalmoskopije za desno oko...", height=100, key="oft_od")
+            
+        with col2:
+            st.write("**OS (Lijevo oko)**")
+            if st.session_state.oft_os_clicked:
+                st.success("✅ Oftalmoskopija OS - uređaj aktiviran")
+            oftalmoskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz oftalmoskopije za lijevo oko...", height=100, key="oft_os")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 6. DJIAGNOZA I TRETMAN
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Dijagnoza i tretman")
+        
+        dijagnoza = st.text_area("Dijagnoza", placeholder="Unesite dijagnozu...", height=80, key="dijagnoza")
+        tretman = st.text_area("Preporučeni tretman", placeholder="Unesite preporučeni tretman...", height=80, key="tretman")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # DODATNA POLJA ZA ANALITIKU
+        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
+        st.subheader("Dodatni podaci za statistiku")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            refrakcija_obavljena = st.checkbox("Refrakcija obavljena", key="refrakcija")
+        
+        with col2:
+            kontaktne_lece_prepisane = st.checkbox("Kontaktne leće prepisane", key="kontaktne_lece")
+            tip_kontaktnih_leca = ""
+            if kontaktne_lece_prepisane:
+                tip_kontaktnih_leca = st.selectbox("Tip kontaktnih leća", [
+                    "Mekane dnevne", "Mekane mjesečne", "Mekane godišnje",
+                    "Rigidne gas permeable", "Scleralne", "Terapijske",
+                    "Kosmetičke", "Kustomizirane"
+                ], key="tip_leca")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # SUBMIT BUTTON
+        submit_button = st.form_submit_button("💾 SPREMI PROTOKOL PREGLEDA", use_container_width=True)
+        
+        if submit_button:
+            # Save to database
+            patient_id_str = selected_patient.split(" - ")[0]
+            c = conn.cursor()
+            
+            # Get patient database ID
+            c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id_str,))
+            result = c.fetchone()
+            
+            if result:
+                patient_db_id = result[0]
+                
+                try:
+                    c.execute('''
+                        INSERT INTO medical_examinations 
+                        (patient_id, anamneza, vizus_od_udaljenog_bez_corr_od, vizus_od_udaljenog_bez_corr_os,
+                         vizus_od_udaljenog_sa_corr_od, vizus_od_udaljenog_sa_corr_os, vizus_iz_bliza_od, vizus_iz_bliza_os,
+                         tonometrija_od, tonometrija_os, biomikroskopija_od, biomikroskopija_os,
+                         oftalmoskopija_od, oftalmoskopija_os, dijagnoza, tretman,
+                         refrakcija_obavljena, kontaktne_lece_prepisane, tip_kontaktnih_leca)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (patient_db_id, anamneza, vizus_od_udaljenog_bez_corr_od, vizus_od_udaljenog_bez_corr_os,
+                          vizus_od_udaljenog_sa_corr_od, vizus_od_udaljenog_sa_corr_os, vizus_iz_bliza_od, vizus_iz_bliza_os,
+                          tonometrija_od, tonometrija_os, biomikroskopija_od, biomikroskopija_os,
+                          oftalmoskopija_od, oftalmoskopija_os, dijagnoza, tretman,
+                          refrakcija_obavljena, kontaktne_lece_prepisane, tip_kontaktnih_leca))
+                    
+                    conn.commit()
+                    
+                    # Reset session state
+                    st.session_state.tono_od_clicked = False
+                    st.session_state.tono_os_clicked = False
+                    st.session_state.bio_od_clicked = False
+                    st.session_state.bio_os_clicked = False
+                    st.session_state.oft_od_clicked = False
+                    st.session_state.oft_os_clicked = False
+                    
+                    st.success("✅ Protokol pregleda uspješno spremljen!")
+                    st.balloons()
+                    
+                except Exception as e:
+                    st.error(f"❌ Greška pri spremanju: {str(e)}")
+            else:
+                st.error("❌ Pacijent nije pronađen u bazi podataka")
+
+# [OSTALE FUNKCIJE OSTAJU ISTE - show_calendar, show_analytics, patient_registration, patient_search, show_dashboard, examination_protocol]
+
+# Ovdje dodajte ostale funkcije koje su bile u prethodnom kodu (show_calendar, show_analytics, itd.)
+# One ostaju nepromijenjene
+
 def show_calendar():
     st.subheader("Kalendar pregleda")
     
@@ -417,7 +657,6 @@ def show_calendar():
             else:
                 st.error("Molimo popunite sva obavezna polja")
 
-# Analytics dashboard
 def show_analytics():
     st.subheader("Analitika pregleda")
     
@@ -535,7 +774,6 @@ def show_analytics():
     
     st.dataframe(stats_data)
 
-# Patient registration
 def patient_registration():
     st.subheader("Registracija novog pacijenta")
     
@@ -577,180 +815,6 @@ def patient_registration():
             else:
                 st.error("Molimo popunite sva obavezna polja (označena sa *)")
 
-# Medical examination
-def medical_examination():
-    st.subheader("Protokol oftalmološkog pregleda")
-    
-    # Odabir pacijenta
-    conn = init_db()
-    patients = pd.read_sql("SELECT id, patient_id, first_name, last_name FROM patients", conn)
-    
-    if patients.empty:
-        st.warning("Nema registriranih pacijenata. Molimo prvo registrirajte pacijenta.")
-        return
-    
-    patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients.iterrows()]
-    selected_patient = st.selectbox("Odaberite pacijenta*", [""] + patient_options)
-    
-    if not selected_patient:
-        st.info("Odaberite pacijenta za nastavak pregleda")
-        return
-    
-    with st.form("examination_form"):
-        # 1. ANAMNESA
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Anamneza")
-        anamneza = st.text_area("Opis anamneze", placeholder="Unesite podatke iz anamneze...", height=100)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 2. VIZUS
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Vizus")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**OD (Desno oko)**")
-            vizus_od_udaljenog_bez_corr_od = st.text_input("Udaljeni bez korekcije OD", placeholder="npr. 0.8")
-            vizus_od_udaljenog_sa_corr_od = st.text_input("Udaljeni sa korekcijom OD", placeholder="npr. 1.0")
-            vizus_iz_bliza_od = st.text_input("Blizu OD", placeholder="npr. 0.8")
-            
-        with col2:
-            st.write("**OS (Lijevo oko)**")
-            vizus_od_udaljenog_bez_corr_os = st.text_input("Udaljeni bez korekcije OS", placeholder="npr. 0.6")
-            vizus_od_udaljenog_sa_corr_os = st.text_input("Udaljeni sa korekcijom OS", placeholder="npr. 1.0")
-            vizus_iz_bliza_os = st.text_input("Blizu OS", placeholder="npr. 0.6")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 3. TONOMETRIJA
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Tonometrija")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("OphtalCAM Device")
-            if st.button("OPHTHALCAM TONOMETRIJA", key="tono_od", use_container_width=True):
-                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
-            tonometrija_od = st.text_input("Vrijednost OD (mmHg)", placeholder="npr. 16")
-            
-        with col2:
-            st.write("OphtalCAM Device") 
-            if st.button("OPHTHALCAM TONOMETRIJA", key="tono_os", use_container_width=True):
-                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
-            tonometrija_os = st.text_input("Vrijednost OS (mmHg)", placeholder="npr. 17")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 4. BIOMIKROSKOPIJA
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Biomikroskopija")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("OphtalCAM Device")
-            if st.button("OPHTHALCAM BIOMIKROSKOPIJA", key="bio_od", use_container_width=True):
-                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
-            biomikroskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz biomikroskopije za desno oko...", height=100)
-            
-        with col2:
-            st.write("OphtalCAM Device")
-            if st.button("OPHTHALCAM BIOMIKROSKOPIJA", key="bio_os", use_container_width=True):
-                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
-            biomikroskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz biomikroskopije za lijevo oko...", height=100)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 5. OFTALMOSKOPIJA
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Oftalmoskopija")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("OphtalCAM Device")
-            if st.button("OPHTHALCAM OFTALMOSKOPIJA", key="oft_od", use_container_width=True):
-                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
-            oftalmoskopija_od = st.text_area("Nalaz OD", placeholder="Unesite nalaz oftalmoskopije za desno oko...", height=100)
-            
-        with col2:
-            st.write("OphtalCAM Device")
-            if st.button("OPHTHALCAM OFTALMOSKOPIJA", key="oft_os", use_container_width=True):
-                st.info("OphtalCAM uređaj će se aktivirati u budućoj verziji")
-            oftalmoskopija_os = st.text_area("Nalaz OS", placeholder="Unesite nalaz oftalmoskopije za lijevo oko...", height=100)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # 6. DJIAGNOZA I TRETMAN
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Dijagnoza i tretman")
-        
-        dijagnoza = st.text_area("Dijagnoza", placeholder="Unesite dijagnozu...", height=80)
-        tretman = st.text_area("Preporučeni tretman", placeholder="Unesite preporučeni tretman...", height=80)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # DODATNA POLJA ZA ANALITIKU
-        st.markdown('<div class="protocol-section">', unsafe_allow_html=True)
-        st.subheader("Dodatni podaci za statistiku")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            refrakcija_obavljena = st.checkbox("Refrakcija obavljena")
-        
-        with col2:
-            kontaktne_lece_prepisane = st.checkbox("Kontaktne leće prepisane")
-            tip_kontaktnih_leca = ""
-            if kontaktne_lece_prepisane:
-                tip_kontaktnih_leca = st.selectbox("Tip kontaktnih leća", [
-                    "Mekane dnevne", "Mekane mjesečne", "Mekane godišnje",
-                    "Rigidne gas permeable", "Scleralne", "Terapijske",
-                    "Kosmetičke", "Kustomizirane"
-                ])
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # SUBMIT BUTTON
-        submit_button = st.form_submit_button("SPREMI PROTOKOL PREGLEDA", use_container_width=True)
-        
-        if submit_button:
-            # Save to database
-            patient_id_str = selected_patient.split(" - ")[0]
-            c = conn.cursor()
-            
-            # Get patient database ID
-            c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id_str,))
-            result = c.fetchone()
-            
-            if result:
-                patient_db_id = result[0]
-                
-                try:
-                    c.execute('''
-                        INSERT INTO medical_examinations 
-                        (patient_id, anamneza, vizus_od_udaljenog_bez_corr_od, vizus_od_udaljenog_bez_corr_os,
-                         vizus_od_udaljenog_sa_corr_od, vizus_od_udaljenog_sa_corr_os, vizus_iz_bliza_od, vizus_iz_bliza_os,
-                         tonometrija_od, tonometrija_os, biomikroskopija_od, biomikroskopija_os,
-                         oftalmoskopija_od, oftalmoskopija_os, dijagnoza, tretman,
-                         refrakcija_obavljena, kontaktne_lece_prepisane, tip_kontaktnih_leca)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (patient_db_id, anamneza, vizus_od_udaljenog_bez_corr_od, vizus_od_udaljenog_bez_corr_os,
-                          vizus_od_udaljenog_sa_corr_od, vizus_od_udaljenog_sa_corr_os, vizus_iz_bliza_od, vizus_iz_bliza_os,
-                          tonometrija_od, tonometrija_os, biomikroskopija_od, biomikroskopija_os,
-                          oftalmoskopija_od, oftalmoskopija_os, dijagnoza, tretman,
-                          refrakcija_obavljena, kontaktne_lece_prepisane, tip_kontaktnih_leca))
-                    
-                    conn.commit()
-                    st.success("Protokol pregleda uspješno spremljen!")
-                except Exception as e:
-                    st.error(f"Greška pri spremanju: {str(e)}")
-            else:
-                st.error("Pacijent nije pronađen u bazi podataka")
-
-# Patient search
 def patient_search():
     st.subheader("Pretraga pacijenata i pregled kartona")
     
@@ -788,7 +852,6 @@ def patient_search():
         else:
             st.info("Nema pronađenih pacijenata")
 
-# Dashboard
 def show_dashboard():
     st.subheader("Klinički dashboard")
     
@@ -839,7 +902,6 @@ def show_dashboard():
         if st.button("Analitika", use_container_width=True):
             st.session_state.current_page = "Analitika"
 
-# Main protocol examination page
 def examination_protocol():
     st.sidebar.title("OphtalCAM Navigacija")
     menu = st.sidebar.selectbox("Izbornik", [
@@ -864,7 +926,6 @@ def examination_protocol():
     elif menu == "Analitika":
         show_analytics()
 
-# Main application flow
 def main():
     load_css()
     
