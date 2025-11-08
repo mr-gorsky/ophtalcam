@@ -339,6 +339,44 @@ def init_db():
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
+        # --- AUTO-MIGRATION for anterior_segment_exams ---
+    try:
+        c.execute("PRAGMA table_info(anterior_segment_exams)")
+        existing_cols = [col[1] for col in c.fetchall()]
+
+        new_cols = {
+            "biomicroscopy_od": "TEXT",
+            "biomicroscopy_os": "TEXT",
+            "biomicroscopy_notes": "TEXT",
+            "anterior_chamber_depth_od": "TEXT",
+            "anterior_chamber_depth_os": "TEXT",
+            "anterior_chamber_volume_od": "TEXT",
+            "anterior_chamber_volume_os": "TEXT",
+            "iridocorneal_angle_od": "TEXT",
+            "iridocorneal_angle_os": "TEXT",
+            "pachymetry_od": "REAL",
+            "pachymetry_os": "REAL",
+            "tonometry_type": "TEXT",
+            "tonometry_time": "TEXT",
+            "tonometry_compensation": "TEXT",
+            "tonometry_od": "TEXT",
+            "tonometry_os": "TEXT",
+            "aberometry_notes": "TEXT",
+            "corneal_topography_notes": "TEXT",
+            "anterior_segment_notes": "TEXT",
+            "uploaded_files": "TEXT"
+        }
+
+        for col, col_type in new_cols.items():
+            if col not in existing_cols:
+                try:
+                    c.execute(f"ALTER TABLE anterior_segment_exams ADD COLUMN {col} {col_type}")
+                    print(f"✅ Added missing column in anterior_segment_exams: {col}")
+                except Exception as e:
+                    print(f"⚠ Could not add column {col}: {e}")
+
+    except Exception as e:
+        print(f"⚠ Migration check failed for anterior_segment_exams: {e}")
 
     # POSTERIOR SEGMENT
     c.execute('''
@@ -1331,6 +1369,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
