@@ -34,7 +34,33 @@ def init_db():
             created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+        # --- AUTO-MIGRATION for refraction_exams ---
+    c.execute("PRAGMA table_info(refraction_exams)")
+    existing_cols = [col[1] for col in c.fetchall()]
+
+    new_columns = {
+        "habitual_type": "TEXT",
+        "objective_refraction_time": "TEXT",
+        "cycloplegic_used": "BOOLEAN",
+        "cycloplegic_type": "TEXT",
+        "cycloplegic_lot": "TEXT",
+        "cycloplegic_expiry": "DATE",
+        "cycloplegic_drops": "INTEGER",
+        "binocular_balance": "TEXT",
+        "stereopsis": "TEXT",
+        "near_point_convergence": "TEXT",
+        "near_point_accommodation": "TEXT",
+        "prescription_notes": "TEXT"
+    }
+
+    for col_name, col_type in new_columns.items():
+        if col_name not in existing_cols:
+            try:
+                c.execute(f"ALTER TABLE refraction_exams ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Added missing column: {col_name}")
+            except Exception as e:
+                print(f"⚠ Could not add column {col_name}: {e}")
+
     # Patients table - with auto-migration for missing columns
     c.execute('''
         CREATE TABLE IF NOT EXISTS patients (
@@ -1536,6 +1562,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
