@@ -56,27 +56,80 @@ def init_db():
         )
     ''')
 
-    # Ensure missing patient columns are added if DB is older
+        # Auto-migrate refraction_exams missing columns
     try:
-        c.execute("PRAGMA table_info(patients)")
+        c.execute("PRAGMA table_info(refraction_exams)")
         existing = [col[1] for col in c.fetchall()]
-        needed = {
-            "id_number": "TEXT",
-            "emergency_contact": "TEXT",
-            "insurance_info": "TEXT",
-            "gender": "TEXT",
-            "phone": "TEXT",
-            "email": "TEXT",
-            "address": "TEXT"
+
+        new_cols = {
+            # Habitual
+            "habitual_type": "TEXT",
+            "habitual_od_va": "TEXT",
+            "habitual_os_va": "TEXT",
+            "habitual_binocular_va": "TEXT",
+            "habitual_pd": "TEXT",
+            "habitual_notes": "TEXT",
+            "vision_notes": "TEXT",
+
+            # Objective
+            "objective_method": "TEXT",
+            "objective_time": "TEXT",
+            "autorefractor_od_sphere": "REAL",
+            "autorefractor_od_cylinder": "REAL",
+            "autorefractor_od_axis": "INTEGER",
+            "autorefractor_os_sphere": "REAL",
+            "autorefractor_os_cylinder": "REAL",
+            "autorefractor_os_axis": "INTEGER",
+
+            # Cycloplegic & Subjective
+            "cycloplegic_used": "BOOLEAN",
+            "cycloplegic_agent": "TEXT",
+            "cycloplegic_lot": "TEXT",
+            "cycloplegic_expiry": "DATE",
+            "cycloplegic_drops": "INTEGER",
+            "subjective_method": "TEXT",
+            "subjective_od_sphere": "REAL",
+            "subjective_od_cylinder": "REAL",
+            "subjective_od_axis": "INTEGER",
+            "subjective_os_sphere": "REAL",
+            "subjective_os_cylinder": "REAL",
+            "subjective_os_axis": "INTEGER",
+            "subjective_notes": "TEXT",
+
+            # Binocular & Final
+            "binocular_balance": "TEXT",
+            "stereopsis": "TEXT",
+            "near_point_convergence_break": "TEXT",
+            "near_point_convergence_recovery": "TEXT",
+            "final_prescribed_od_sphere": "REAL",
+            "final_prescribed_od_cylinder": "REAL",
+            "final_prescribed_od_axis": "INTEGER",
+            "final_prescribed_os_sphere": "REAL",
+            "final_prescribed_os_cylinder": "REAL",
+            "final_prescribed_os_axis": "INTEGER",
+            "final_prescribed_binocular_va": "TEXT",
+            "bvp": "TEXT",
+            "pinhole": "TEXT",
+            "prescription_notes": "TEXT",
+
+            # Other
+            "binocular_tests": "TEXT",
+            "functional_tests": "TEXT",
+            "accommodation_tests": "TEXT",
+            "uploaded_files": "TEXT"
         }
-        for col, ctype in needed.items():
+
+        for col, ctype in new_cols.items():
             if col not in existing:
                 try:
-                    c.execute(f"ALTER TABLE patients ADD COLUMN {col} {ctype}")
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                    c.execute(f"ALTER TABLE refraction_exams ADD COLUMN {col} {ctype}")
+                    print(f"✅ Added missing column: {col}")
+                except Exception as e:
+                    print(f"⚠ Could not add column {col}: {e}")
+
+    except Exception as e:
+        print(f"⚠ Migration error for refraction_exams: {e}")
+
 
     # MEDICAL HISTORY
     c.execute('''
@@ -1255,3 +1308,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
