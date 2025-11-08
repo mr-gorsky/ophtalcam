@@ -36,6 +36,28 @@ def init_db():
             created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+        # --- AUTO-MIGRATION for functional_tests ---
+    try:
+        c.execute("PRAGMA table_info(functional_tests)")
+        existing_cols = [col[1] for col in c.fetchall()]
+        new_cols = {
+            "motility": "TEXT",
+            "hirschberg": "TEXT",
+            "cover_test_distance": "TEXT",
+            "cover_test_near": "TEXT",
+            "pupils": "TEXT",
+            "confrontation_fields": "TEXT",
+            "other_notes": "TEXT"
+        }
+        for col, coltype in new_cols.items():
+            if col not in existing_cols:
+                try:
+                    c.execute(f"ALTER TABLE functional_tests ADD COLUMN {col} {coltype}")
+                    print(f"✅ Added missing column in functional_tests: {col}")
+                except Exception as e:
+                    print(f"⚠ Could not add column {col}: {e}")
+    except Exception as e:
+        print(f"⚠ Migration check failed for functional_tests: {e}")
 
     # PATIENTS - create base schema (include optional columns) then auto-migrate missing
     c.execute('''
@@ -1309,5 +1331,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
