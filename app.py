@@ -400,6 +400,37 @@ def init_db():
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
     ''')
+        # --- AUTO-MIGRATION for posterior_segment_exams ---
+    try:
+        c.execute("PRAGMA table_info(posterior_segment_exams)")
+        existing_cols = [col[1] for col in c.fetchall()]
+
+        new_cols = {
+            "fundus_exam_type": "TEXT",
+            "fundus_od": "TEXT",
+            "fundus_os": "TEXT",
+            "fundus_notes": "TEXT",
+            "pupillography_results": "TEXT",
+            "pupillography_notes": "TEXT",
+            "oct_macula_od": "TEXT",
+            "oct_macula_os": "TEXT",
+            "oct_rnfl_od": "TEXT",
+            "oct_rnfl_os": "TEXT",
+            "oct_notes": "TEXT",
+            "posterior_segment_notes": "TEXT",
+            "uploaded_files": "TEXT"
+        }
+
+        for col, col_type in new_cols.items():
+            if col not in existing_cols:
+                try:
+                    c.execute(f"ALTER TABLE posterior_segment_exams ADD COLUMN {col} {col_type}")
+                    print(f"✅ Added missing column in posterior_segment_exams: {col}")
+                except Exception as e:
+                    print(f"⚠ Could not add column {col}: {e}")
+
+    except Exception as e:
+        print(f"⚠ Migration check failed for posterior_segment_exams: {e}")
 
     # CONTACT LENSES
     c.execute('''
@@ -1369,6 +1400,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
