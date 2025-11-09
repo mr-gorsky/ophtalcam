@@ -492,7 +492,7 @@ def show_dashboard():
     with col_filter[0]:
         view_option = st.selectbox("Time View", ["Today","This Week","This Month"], key="view_filter")
     with col_filter[3]:
-        if st.button("+ New Appointment", use_container_width=True):
+        if st.button("+ New Appointment", use_container_width=True, key="new_appt_btn"):
             st.session_state.menu = "Schedule Appointment"
             st.rerun()
     total_patients, today_exams, total_cl = get_patient_stats()
@@ -546,10 +546,10 @@ def show_dashboard():
                     else:
                         cols[i].write(str(day))
         st.markdown("---")
-        if st.button("New Patient Registration", use_container_width=True):
+        if st.button("New Patient Registration", use_container_width=True, key="new_patient_btn"):
             st.session_state.menu = "Patient Registration"
             st.rerun()
-        if st.button("Patient Search & Records", use_container_width=True):
+        if st.button("Patient Search & Records", use_container_width=True, key="search_patient_btn"):
             st.session_state.menu = "Patient Search"
             st.rerun()
 
@@ -569,22 +569,22 @@ def medical_history():
         st.markdown("#### General Health")
         g1, g2 = st.columns(2)
         with g1:
-            general_health = st.text_area("General health", height=100)
-            current_medications = st.text_area("Current medications", height=80)
-            allergies = st.text_area("Allergies", height=80)
+            general_health = st.text_area("General health", height=100, key="gen_health")
+            current_medications = st.text_area("Current medications", height=80, key="curr_meds")
+            allergies = st.text_area("Allergies", height=80, key="allergies")
         with g2:
-            headaches = st.text_area("Headaches / Migraines", height=100)
-            family_history = st.text_area("Family medical history", height=100)
-            ocular_history = st.text_area("Ocular history", height=80)
+            headaches = st.text_area("Headaches / Migraines", height=100, key="headaches")
+            family_history = st.text_area("Family medical history", height=100, key="family_hist")
+            ocular_history = st.text_area("Ocular history", height=80, key="ocular_hist")
         st.markdown("#### Social / Lifestyle")
         s1, s2 = st.columns(2)
         with s1:
-            smoking = st.selectbox("Smoking status", ["Non-smoker","Former","Current","Unknown"])
-            alcohol = st.selectbox("Alcohol", ["None","Occasional","Moderate","Heavy"])
+            smoking = st.selectbox("Smoking status", ["Non-smoker","Former","Current","Unknown"], key="smoking")
+            alcohol = st.selectbox("Alcohol", ["None","Occasional","Moderate","Heavy"], key="alcohol")
         with s2:
-            occupation = st.text_input("Occupation")
-            hobbies = st.text_area("Hobbies", height=60)
-        uploaded = st.file_uploader("Upload previous reports (pdf/jpg/png)", type=['pdf','jpg','png'], accept_multiple_files=True)
+            occupation = st.text_input("Occupation", key="occupation")
+            hobbies = st.text_area("Hobbies", height=60, key="hobbies")
+        uploaded = st.file_uploader("Upload previous reports (pdf/jpg/png)", type=['pdf','jpg','png'], accept_multiple_files=True, key="mh_uploads")
         submit = st.form_submit_button("Save Medical History & Continue")
         if submit:
             try:
@@ -636,32 +636,32 @@ def refraction_examination():
         c1, c2 = st.columns([2,2])
         with c1:
             st.markdown("**Habitual Correction**")
-            habitual_type = st.selectbox("Type of Habitual Correction", ["None","Spectacles","Soft Contact Lenses","RGP","Scleral","Ortho-K","Other"], index=0)
+            habitual_type = st.selectbox("Type of Habitual Correction", ["None","Spectacles","Soft Contact Lenses","RGP","Scleral","Ortho-K","Other"], index=0, key="habit_type")
             # aligned OD / OS for habit VA with small modifier
             hcol_od, spacer, hcol_os = st.columns([2,0.2,2])
             with hcol_od:
-                habitual_od_va = st.text_input("Habitual VA OD", placeholder="e.g., 1.0 or 20/20")
+                habitual_od_va = st.text_input("Habitual VA OD", placeholder="e.g., 1.0 or 20/20", key="habit_od_va")
             with hcol_os:
-                habitual_os_va = st.text_input("Habitual VA OS", placeholder="e.g., 1.0 or 20/20")
+                habitual_os_va = st.text_input("Habitual VA OS", placeholder="e.g., 1.0 or 20/20", key="habit_os_va")
             # modifiers row
             hmod_od, _, hmod_os = st.columns([1,0.2,1])
             with hmod_od:
-                habitual_od_modifier = st.text_input("Modifier OD", placeholder="-2", help="Optional small note, e.g. -2")
+                habitual_od_modifier = st.text_input("Modifier OD", placeholder="-2", help="Optional small note, e.g. -2", key="habit_od_mod")
             with hmod_os:
-                habitual_os_modifier = st.text_input("Modifier OS", placeholder="-2")
+                habitual_os_modifier = st.text_input("Modifier OS", placeholder="-2", key="habit_os_mod")
             # binocular
-            habitual_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20")
-            habitual_bin_modifier = st.text_input("Binocular modifier", placeholder="-2")
-            habitual_pd = st.text_input("PD (mm)")
+            habitual_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20", key="habit_bin_va")
+            habitual_bin_modifier = st.text_input("Binocular modifier", placeholder="-2", key="habit_bin_mod")
+            habitual_pd = st.text_input("PD (mm)", key="habit_pd")
         with c2:
             st.markdown("**Uncorrected Vision**")
-            uncorrected_od_va = st.text_input("Uncorrected VA OD", placeholder="e.g., 1.0 or 20/200")
-            uncorrected_od_modifier = st.text_input("Modifier OD", placeholder="-2")
-            uncorrected_os_va = st.text_input("Uncorrected VA OS", placeholder="e.g., 1.0 or 20/200")
-            uncorrected_os_modifier = st.text_input("Modifier OS", placeholder="-2")
-            uncorrected_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0")
-            uncorrected_bin_modifier = st.text_input("Uncorrected binocular modifier", placeholder="-2")
-            vision_notes = st.text_area("Vision notes", height=140)
+            uncorrected_od_va = st.text_input("Uncorrected VA OD", placeholder="e.g., 1.0 or 20/200", key="uncorr_od_va")
+            uncorrected_od_modifier = st.text_input("Modifier OD", placeholder="-2", key="uncorr_od_mod")
+            uncorrected_os_va = st.text_input("Uncorrected VA OS", placeholder="e.g., 1.0 or 20/200", key="uncorr_os_va")
+            uncorrected_os_modifier = st.text_input("Modifier OS", placeholder="-2", key="uncorr_os_mod")
+            uncorrected_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0", key="uncorr_bin_va")
+            uncorrected_bin_modifier = st.text_input("Uncorrected binocular modifier", placeholder="-2", key="uncorr_bin_mod")
+            vision_notes = st.text_area("Vision notes", height=140, key="vision_notes")
         savev = st.form_submit_button("Save Vision Section")
         if savev:
             st.session_state.refraction.update({
@@ -690,21 +690,21 @@ def refraction_examination():
     with st.form("objective_form"):
         top1, top2 = st.columns([2,2])
         with top1:
-            objective_method = st.selectbox("Objective Method", ["Autorefractor","Retinoscopy","Other"], index=0)
+            objective_method = st.selectbox("Objective Method", ["Autorefractor","Retinoscopy","Other"], index=0, key="obj_method")
         with top2:
-            objective_time = st.time_input("Time of measurement", value=datetime.now().time())
+            objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
         od_col, spacer, os_col = st.columns([2,0.2,2])
         with od_col:
             st.markdown("**Right Eye (OD)**")
-            autorefractor_od_sphere = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f")
-            autorefractor_od_cylinder = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f")
-            autorefractor_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0)
+            autorefractor_od_sphere = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="obj_od_sph")
+            autorefractor_od_cylinder = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="obj_od_cyl")
+            autorefractor_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="obj_od_ax")
         with os_col:
             st.markdown("**Left Eye (OS)**")
-            autorefractor_os_sphere = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f")
-            autorefractor_os_cylinder = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f")
-            autorefractor_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0)
-        objective_notes = st.text_area("Objective notes", height=120)
+            autorefractor_os_sphere = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f", key="obj_os_sph")
+            autorefractor_os_cylinder = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="obj_os_cyl")
+            autorefractor_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="obj_os_ax")
+        objective_notes = st.text_area("Objective notes", height=120, key="obj_notes")
         save_obj = st.form_submit_button("Save Objective Section")
         if save_obj:
             st.session_state.refraction.update({
@@ -725,18 +725,18 @@ def refraction_examination():
     # 3) Cycloplegic & Subjective (aligned, smaller boxes for cycloplegic data)
     st.markdown("#### 3) Cycloplegic (if used) & Subjective Monocular Refraction")
     with st.form("subjective_form"):
-        subj_method = st.selectbox("Subjective method", ["Fogging","With Cycloplegic","Other"])
+        subj_method = st.selectbox("Subjective method", ["Fogging","With Cycloplegic","Other"], key="subj_method")
         cycloplegic_used = True if subj_method == "With Cycloplegic" else False
         if cycloplegic_used:
             c1,c2,c3,c4 = st.columns([1,1,1,1])
             with c1:
-                cycloplegic_agent = st.text_input("Agent", placeholder="Cyclopentolate 1%")
+                cycloplegic_agent = st.text_input("Agent", placeholder="Cyclopentolate 1%", key="cyclo_agent")
             with c2:
-                cycloplegic_lot = st.text_input("Lot #", placeholder="LOT123")
+                cycloplegic_lot = st.text_input("Lot #", placeholder="LOT123", key="cyclo_lot")
             with c3:
-                cycloplegic_expiry = st.date_input("Expiry", value=date.today())
+                cycloplegic_expiry = st.date_input("Expiry", value=date.today(), key="cyclo_expiry")
             with c4:
-                cycloplegic_drops = st.number_input("Drops", min_value=1, max_value=10, value=1)
+                cycloplegic_drops = st.number_input("Drops", min_value=1, max_value=10, value=1, key="cyclo_drops")
         else:
             cycloplegic_agent = ""
             cycloplegic_lot = ""
@@ -746,19 +746,19 @@ def refraction_examination():
         sod_col, _, sos_col = st.columns([2,0.2,2])
         with sod_col:
             st.markdown("**Right Eye (OD)**")
-            subjective_od_sphere = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f")
-            subjective_od_cylinder = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f")
-            subjective_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0)
-            subjective_od_va = st.text_input("Subjective VA OD", placeholder="e.g., 1.0 or 20/20")
-            subjective_od_modifier = st.text_input("Modifier OD", placeholder="-2")
+            subjective_od_sphere = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="subj_od_sph")
+            subjective_od_cylinder = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="subj_od_cyl")
+            subjective_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_ax")
+            subjective_od_va = st.text_input("Subjective VA OD", placeholder="e.g., 1.0 or 20/20", key="subj_od_va")
+            subjective_od_modifier = st.text_input("Modifier OD", placeholder="-2", key="subj_od_mod")
         with sos_col:
             st.markdown("**Left Eye (OS)**")
-            subjective_os_sphere = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f")
-            subjective_os_cylinder = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f")
-            subjective_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0)
-            subjective_os_va = st.text_input("Subjective VA OS", placeholder="e.g., 1.0 or 20/20")
-            subjective_os_modifier = st.text_input("Modifier OS", placeholder="-2")
-        subjective_notes = st.text_area("Subjective notes", height=120)
+            subjective_os_sphere = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f", key="subj_os_sph")
+            subjective_os_cylinder = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="subj_os_cyl")
+            subjective_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_ax")
+            subjective_os_va = st.text_input("Subjective VA OS", placeholder="e.g., 1.0 or 20/20", key="subj_os_va")
+            subjective_os_modifier = st.text_input("Modifier OS", placeholder="-2", key="subj_os_mod")
+        subjective_notes = st.text_area("Subjective notes", height=120, key="subj_notes")
         save_subj = st.form_submit_button("Save Subjective Section")
         if save_subj:
             st.session_state.refraction.update({
@@ -790,28 +790,28 @@ def refraction_examination():
         left_col, right_col = st.columns([2,2])
         with left_col:
             st.markdown("**Right Eye (OD) - Final**")
-            final_od_sph = st.number_input("Final Sphere OD", value=0.0, step=0.25, format="%.2f")
-            final_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f")
-            final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0)
+            final_od_sph = st.number_input("Final Sphere OD", value=0.0, step=0.25, format="%.2f", key="final_od_sph")
+            final_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f", key="final_od_cyl")
+            final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_ax")
         with right_col:
             st.markdown("**Left Eye (OS) - Final**")
-            final_os_sph = st.number_input("Final Sphere OS", value=0.0, step=0.25, format="%.2f")
-            final_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f")
-            final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0)
+            final_os_sph = st.number_input("Final Sphere OS", value=0.0, step=0.25, format="%.2f", key="final_os_sph")
+            final_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f", key="final_os_cyl")
+            final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_ax")
         # binocular and notes
         bin1, bin2 = st.columns([2,2])
         with bin1:
-            final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 or 20/20")
-            final_bin_modifier = st.text_input("Final Binocular modifier", placeholder="-2")
-            bvp = st.text_input("BVP")
-            pinhole = st.text_input("Pinhole VA")
+            final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 or 20/20", key="final_bin_va")
+            final_bin_modifier = st.text_input("Final Binocular modifier", placeholder="-2", key="final_bin_mod")
+            bvp = st.text_input("BVP", key="bvp")
+            pinhole = st.text_input("Pinhole VA", key="pinhole")
         with bin2:
-            binocular_balance = st.selectbox("Binocular Balance", ["Balanced","OD dominant","OS dominant","Unbalanced"])
-            stereopsis = st.text_input("Stereoacuity")
-            npc_break = st.text_input("NPC Break")
-            npc_recovery = st.text_input("NPC Recovery")
-            binocular_tests = st.text_area("Binocular tests (phoria, cover test, Worth, etc.)", height=120)
-        prescription_notes = st.text_area("Prescription notes / rationale", height=140)
+            binocular_balance = st.selectbox("Binocular Balance", ["Balanced","OD dominant","OS dominant","Unbalanced"], key="bin_balance")
+            stereopsis = st.text_input("Stereoacuity", key="stereopsis")
+            npc_break = st.text_input("NPC Break", key="npc_break")
+            npc_recovery = st.text_input("NPC Recovery", key="npc_recovery")
+            binocular_tests = st.text_area("Binocular tests (phoria, cover test, Worth, etc.)", height=120, key="bin_tests")
+        prescription_notes = st.text_area("Prescription notes / rationale", height=140, key="presc_notes")
         save_final = st.form_submit_button("Save & Finalize Refraction")
         if save_final:
             try:
@@ -914,14 +914,14 @@ def functional_tests():
         return
     pid = st.session_state.selected_patient
     with st.form("functional_form"):
-        motility = st.text_area("Ocular motility (notes)", height=120)
-        hirschberg = st.text_input("Hirschberg result")
-        npc_break = st.text_input("NPC Break")
-        npc_recovery = st.text_input("NPC Recovery")
-        pupils = st.text_input("Pupils (size/reactivity)")
-        rapd = st.selectbox("RAPD", ["None","Present","Unsure"])
-        confrontation = st.text_area("Confrontation visual field", height=100)
-        func_notes = st.text_area("Functional notes", height=80)
+        motility = st.text_area("Ocular motility (notes)", height=120, key="motility")
+        hirschberg = st.text_input("Hirschberg result", key="hirschberg")
+        npc_break = st.text_input("NPC Break", key="func_npc_break")
+        npc_recovery = st.text_input("NPC Recovery", key="func_npc_recovery")
+        pupils = st.text_input("Pupils (size/reactivity)", key="pupils")
+        rapd = st.selectbox("RAPD", ["None","Present","Unsure"], key="rapd")
+        confrontation = st.text_area("Confrontation visual field", height=100, key="confrontation")
+        func_notes = st.text_area("Functional notes", height=80, key="func_notes")
         savef = st.form_submit_button("Save Functional Tests")
         if savef:
             try:
@@ -948,21 +948,21 @@ def anterior_segment_examination():
     with st.form("anterior_form"):
         c1,c2 = st.columns([2,2])
         with c1:
-            biomicroscopy_od = st.text_area("Biomicroscopy OD", height=120)
-            biomicroscopy_os = st.text_area("Biomicroscopy OS", height=120)
-            biomicroscopy_notes = st.text_area("Biomicroscopy notes", height=80)
+            biomicroscopy_od = st.text_area("Biomicroscopy OD", height=120, key="bio_od")
+            biomicroscopy_os = st.text_area("Biomicroscopy OS", height=120, key="bio_os")
+            biomicroscopy_notes = st.text_area("Biomicroscopy notes", height=80, key="bio_notes")
         with c2:
-            acd_od = st.text_input("AC Depth OD")
-            acd_os = st.text_input("AC Depth OS")
-            acv_od = st.text_input("AC Volume OD")
-            acv_os = st.text_input("AC Volume OS")
-            iridocorneal_od = st.text_input("Iridocorneal Angle OD")
-            iridocorneal_os = st.text_input("Iridocorneal Angle OS")
+            acd_od = st.text_input("AC Depth OD", key="acd_od")
+            acd_os = st.text_input("AC Depth OS", key="acd_os")
+            acv_od = st.text_input("AC Volume OD", key="acv_od")
+            acv_os = st.text_input("AC Volume OS", key="acv_os")
+            iridocorneal_od = st.text_input("Iridocorneal Angle OD", key="ica_od")
+            iridocorneal_os = st.text_input("Iridocorneal Angle OS", key="ica_os")
         st.markdown("#### Pupillography")
-        pup_res = st.text_area("Pupillography results / pupillometry notes", height=80)
-        pup_notes = st.text_area("Pupillography notes", height=60)
-        pup_files = st.file_uploader("Upload pupillography images/reports", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True)
-        files = st.file_uploader("Upload slit-lamp / pachymetry / topography", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True)
+        pup_res = st.text_area("Pupillography results / pupillometry notes", height=80, key="pupil_res")
+        pup_notes = st.text_area("Pupillography notes", height=60, key="pupil_notes")
+        pup_files = st.file_uploader("Upload pupillography images/reports", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True, key="pupil_files")
+        files = st.file_uploader("Upload slit-lamp / pachymetry / topography", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True, key="ant_files")
         savea = st.form_submit_button("Save Anterior Segment")
         if savea:
             try:
@@ -1008,11 +1008,11 @@ def posterior_segment_examination():
         return
     pid = st.session_state.selected_patient
     with st.form("posterior_form"):
-        fundus_type = st.selectbox("Fundus exam type", ["Indirect ophthalmoscopy","Fundus camera","Widefield","Other"])
-        fundus_od = st.text_area("Fundus OD findings", height=120)
-        fundus_os = st.text_area("Fundus OS findings", height=120)
-        fundus_notes = st.text_area("Fundus notes", height=80)
-        oct_uploads = st.file_uploader("Upload OCT / fundus images (pdf/png/jpg)", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True)
+        fundus_type = st.selectbox("Fundus exam type", ["Indirect ophthalmoscopy","Fundus camera","Widefield","Other"], key="fundus_type")
+        fundus_od = st.text_area("Fundus OD findings", height=120, key="fundus_od")
+        fundus_os = st.text_area("Fundus OS findings", height=120, key="fundus_os")
+        fundus_notes = st.text_area("Fundus notes", height=80, key="fundus_notes")
+        oct_uploads = st.file_uploader("Upload OCT / fundus images (pdf/png/jpg)", type=['pdf','png','jpg','jpeg'], accept_multiple_files=True, key="oct_files")
         savep = st.form_submit_button("Save Posterior Segment & Continue")
         if savep:
             try:
@@ -1047,16 +1047,16 @@ def contact_lenses():
         return
     pid = st.session_state.selected_patient
     with st.form("cl_form"):
-        lens_type = st.selectbox("Lens type", ["Soft","RGP","Scleral","Custom"])
-        soft_brand = st.text_input("Soft brand (if applicable)")
-        soft_base_curve = st.number_input("Soft base curve", value=0.0, step=0.1)
-        soft_diameter = st.number_input("Soft diameter", value=0.0, step=0.1)
-        soft_power_od = st.number_input("Soft power OD", value=0.0, step=0.25)
-        soft_power_os = st.number_input("Soft power OS", value=0.0, step=0.25)
-        wearing_schedule = st.text_input("Wearing schedule")
-        care_solution = st.text_input("Care solution")
-        follow_up = st.date_input("Follow-up date", value=date.today() + timedelta(days=30))
-        fitting_notes = st.text_area("Fitting notes", height=120)
+        lens_type = st.selectbox("Lens type", ["Soft","RGP","Scleral","Custom"], key="lens_type")
+        soft_brand = st.text_input("Soft brand (if applicable)", key="soft_brand")
+        soft_base_curve = st.number_input("Soft base curve", value=0.0, step=0.1, key="soft_bc")
+        soft_diameter = st.number_input("Soft diameter", value=0.0, step=0.1, key="soft_diam")
+        soft_power_od = st.number_input("Soft power OD", value=0.0, step=0.25, key="soft_power_od")
+        soft_power_os = st.number_input("Soft power OS", value=0.0, step=0.25, key="soft_power_os")
+        wearing_schedule = st.text_input("Wearing schedule", key="wearing_sched")
+        care_solution = st.text_input("Care solution", key="care_sol")
+        follow_up = st.date_input("Follow-up date", value=date.today() + timedelta(days=30), key="follow_up")
+        fitting_notes = st.text_area("Fitting notes", height=120, key="fitting_notes")
         savecl = st.form_submit_button("Save Contact Lens Prescription")
         if savecl:
             try:
@@ -1094,8 +1094,8 @@ def generate_report():
             })
         else:
             st.info("No refraction record found.")
-        note = st.text_area("Add custom note for report")
-        if st.button("Download Summary as txt"):
+        note = st.text_area("Add custom note for report", key="report_note")
+        if st.button("Download Summary as txt", key="download_report"):
             contents = f"Report for {p['first_name']} {p['last_name']} ({p['patient_id']})\n\nNotes:\n{note}\n"
             st.download_button("Download", contents, file_name=f"report_{p['patient_id']}.txt")
     except Exception as e:
@@ -1107,20 +1107,20 @@ def patient_registration():
     with st.form("reg_form"):
         c1, c2 = st.columns(2)
         with c1:
-            patient_id = st.text_input("Patient ID (optional)")
-            first_name = st.text_input("First Name*", placeholder="Given name")
-            last_name = st.text_input("Last Name*", placeholder="Family name")
+            patient_id = st.text_input("Patient ID (optional)", key="reg_patient_id")
+            first_name = st.text_input("First Name*", placeholder="Given name", key="reg_first_name")
+            last_name = st.text_input("Last Name*", placeholder="Family name", key="reg_last_name")
             # EU date format shown via format param, and min allowed date set to 1900-01-01
-            date_of_birth = st.date_input("Date of Birth*", value=date(1990,1,1), min_value=date(1900,1,1), max_value=date.today(), format="DD.MM.YYYY")
-            gender = st.selectbox("Gender", ["Male","Female","Other","Prefer not to say"])
+            date_of_birth = st.date_input("Date of Birth*", value=date(1990,1,1), min_value=date(1900,1,1), max_value=date.today(), format="DD.MM.YYYY", key="reg_dob")
+            gender = st.selectbox("Gender", ["Male","Female","Other","Prefer not to say"], key="reg_gender")
         with c2:
-            phone = st.text_input("Phone")
-            email = st.text_input("Email")
-            address = st.text_area("Address", height=60)
-            id_number = st.text_input("ID / Passport")
+            phone = st.text_input("Phone", key="reg_phone")
+            email = st.text_input("Email", key="reg_email")
+            address = st.text_area("Address", height=60, key="reg_address")
+            id_number = st.text_input("ID / Passport", key="reg_id")
         with st.expander("Emergency & Insurance"):
-            emergency_contact = st.text_input("Emergency contact")
-            insurance_info = st.text_input("Insurance info")
+            emergency_contact = st.text_input("Emergency contact", key="reg_emergency")
+            insurance_info = st.text_input("Insurance info", key="reg_insurance")
         submit = st.form_submit_button("Register New Patient")
         if submit:
             if not all([first_name, last_name, date_of_birth]):
@@ -1146,9 +1146,9 @@ def patient_search():
     st.subheader("Patient Search & Records")
     s1, s2 = st.columns([2,1])
     with s1:
-        q = st.text_input("Search patients", placeholder="ID, name, phone, id#")
+        q = st.text_input("Search patients", placeholder="ID, name, phone, id#", key="search_query")
     with s2:
-        stype = st.selectbox("Search by", ["All Fields","Patient ID","Name","Phone"])
+        stype = st.selectbox("Search by", ["All Fields","Patient ID","Name","Phone"], key="search_type")
     if q:
         try:
             if stype=="All Fields":
@@ -1206,7 +1206,7 @@ def main_navigation():
     if 'exam_step' not in st.session_state:
         st.session_state.exam_step = None
     menu_options = ["Dashboard","Patient Registration","Patient Search","Examination Protocol","Contact Lenses","Schedule Appointment","Clinical Analytics","Patient Groups","System Settings"]
-    menu = st.sidebar.selectbox("Navigation", menu_options, index=menu_options.index(st.session_state.menu) if st.session_state.menu in menu_options else 0)
+    menu = st.sidebar.selectbox("Navigation", menu_options, index=menu_options.index(st.session_state.menu) if st.session_state.menu in menu_options else 0, key="nav_select")
     st.session_state.menu = menu
 
     if st.session_state.exam_step:
@@ -1261,8 +1261,8 @@ def login_page():
         st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=180)
     st.markdown("---")
     with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        username = st.text_input("Username", key="login_user")
+        password = st.text_input("Password", type="password", key="login_pass")
         login = st.form_submit_button("Access Clinical System")
         if login:
             if username and password:
@@ -1304,7 +1304,7 @@ def main():
         with top3:
             st.write(f"**Clinician:** {st.session_state.username}")
             st.write(f"**Role:** {st.session_state.role}")
-            if st.button("Logout"):
+            if st.button("Logout", key="logout_btn"):
                 st.session_state.logged_in = False
                 st.session_state.username = None
                 st.session_state.role = None
