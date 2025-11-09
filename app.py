@@ -1284,6 +1284,36 @@ def navbar():
             <div style="font-size:0.9rem;">Phantasmed</div>
         </div>
     """, unsafe_allow_html=True)
+# --- LOGIN SCREEN ---
+def login_screen():
+    st.markdown("""
+        <style>
+        .login-header {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:1rem;
+        }
+        </style>
+        <div class="login-header">
+            <img src="logo.png" width="120">
+            <div style="font-weight:600;font-size:1.2rem;">Phantasmed</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    user = st.text_input("Username")
+    pw = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if user == "admin" and pw == "admin":   # primjer – možeš kasnije povezati s DB
+            st.session_state["logged_in"] = True
+            st.experimental_rerun()
+        else:
+            st.error("Invalid credentials")
+
+# --- WRAPPER ---
+def app_router():
+    if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+        login_screen()
+    else:
+        main()
 
 # --- Main App Navigation ---
 def main():
@@ -1314,3 +1344,4 @@ def main():
 # --- Run App ---
 if __name__ == "__main__":
     main()
+
