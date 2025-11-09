@@ -834,8 +834,8 @@ def refraction_examination():
                      final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis,
                      final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
                      final_prescribed_binocular_va, final_prescribed_binocular_modifier, bvp, pinhole, prescription_notes,
-                     binocular_tests, uploaded_files)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     binocular_tests, functional_tests, accommodation_tests, uploaded_files)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid,
                     st.session_state.refraction.get('habitual_type'),
@@ -895,6 +895,8 @@ def refraction_examination():
                     pinhole,
                     prescription_notes,
                     binocular_tests,
+                    st.session_state.refraction.get('functional_tests'),
+                    st.session_state.refraction.get('accommodation_tests'),
                     json.dumps(uploaded_files)
                 ))
                 conn.commit()
