@@ -7,6 +7,7 @@ import calendar
 import os
 import json
 import hashlib
+import math
 
 st.set_page_config(page_title="OphtalCAM EMR", page_icon="👁️", layout="wide", initial_sidebar_state="collapsed")
 
@@ -91,7 +92,6 @@ def init_db():
             habitual_add_os TEXT,
             habitual_deg_od TEXT,
             habitual_deg_os TEXT,
-            habitual_distance TEXT,
             vision_notes TEXT,
             uncorrected_od_va TEXT,
             uncorrected_od_modifier TEXT,
@@ -129,6 +129,7 @@ def init_db():
             subjective_add_os TEXT,
             subjective_deg_os TEXT,
             subjective_distance TEXT,
+            subjective_deg_distance TEXT,
             subjective_notes TEXT,
             binocular_balance TEXT,
             stereopsis TEXT,
@@ -146,7 +147,7 @@ def init_db():
             final_add_os TEXT,
             final_deg_od TEXT,
             final_deg_os TEXT,
-            final_distance TEXT,
+            final_deg_distance TEXT,
             bvp TEXT,
             pinhole TEXT,
             prescription_notes TEXT,
@@ -724,8 +725,66 @@ def load_css():
     .eye-comparison > div {
         flex: 1;
     }
+    .compact-input {
+        margin-bottom: 0.5rem;
+    }
+    .tabo-scheme {
+        width: 300px;
+        height: 300px;
+        position: relative;
+        border: 2px solid #333;
+        border-radius: 50%;
+        margin: 20px auto;
+        background: white;
+    }
+    .tabo-axis {
+        position: absolute;
+        background: #1e3c72;
+        font-weight: bold;
+        color: white;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 12px;
+    }
     </style>
     """, unsafe_allow_html=True)
+
+def draw_tabo_scheme(axis_od, axis_os):
+    """Draw Tabo scheme with axis markings"""
+    html = f"""
+    <div class="tabo-scheme">
+        <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:#333;"></div>
+        <div style="position:absolute; top:0; bottom:0; left:50%; width:1px; background:#333;"></div>
+        <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); font-weight:bold;">90°</div>
+        <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:bold;">270°</div>
+        <div style="position:absolute; top:50%; left:10px; transform:translateY(-50%); font-weight:bold;">180°</div>
+        <div style="position:absolute; top:50%; right:10px; transform:translateY(-50%); font-weight:bold;">0°</div>
+    """
+    
+    if axis_od and axis_od != "":
+        angle = int(axis_od)
+        rad = math.radians(angle)
+        x = 150 + 120 * math.sin(rad)
+        y = 150 - 120 * math.cos(rad)
+        html += f"""
+        <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#ff4444;">
+            OD: {axis_od}°
+        </div>
+        """
+    
+    if axis_os and axis_os != "":
+        angle = int(axis_os)
+        rad = math.radians(angle)
+        x = 150 + 80 * math.sin(rad)
+        y = 150 - 80 * math.cos(rad)
+        html += f"""
+        <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#4444ff;">
+            OS: {axis_os}°
+        </div>
+        """
+    
+    html += "</div>"
+    return html
 
 # -----------------------
 # PROFESSIONAL DASHBOARD - COMPLETELY FUNCTIONAL
@@ -921,16 +980,15 @@ def medical_history():
             occupation = st.text_input("Occupation")
             hobbies = st.text_area("Hobbies/Activities", height=60)
         
-        # Dodana Run Ophtalcam Device tipka
-        col_device1, col_device2 = st.columns(2)
-        with col_device1:
-            uploaded = st.file_uploader("Upload medical reports (PDF/JPG/PNG)", 
-                                      type=['pdf', 'jpg', 'png'], 
-                                      accept_multiple_files=True)
-        with col_device2:
-            st.markdown("#### OphtalCAM Device")
-            if st.button("Run Ophtalcam Device", use_container_width=True, key="run_ophtalcam_mh"):
-                st.info("OphtalCAM device integration would be implemented here")
+        # Dodana Run Ophtalcam Device tipka IZVAN forme
+        uploaded = st.file_uploader("Upload medical reports (PDF/JPG/PNG)", 
+                                  type=['pdf', 'jpg', 'png'], 
+                                  accept_multiple_files=True)
+        
+        col_device = st.columns(2)
+        with col_device[0]:
+            # OphtalCAM button outside the form
+            pass
         
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
@@ -969,6 +1027,11 @@ def medical_history():
                 st.rerun()
             except Exception as e:
                 st.error(f"Database error: {str(e)}")
+    
+    # OphtalCAM button OUTSIDE the form
+    st.markdown("#### OphtalCAM Device Integration")
+    if st.button("Run Ophtalcam Device", use_container_width=True, key="run_ophtalcam_mh"):
+        st.info("OphtalCAM device integration would be implemented here")
 
 def refraction_examination():
     st.markdown("<h2 class='main-header'>2. Comprehensive Refraction & Vision Examination</h2>", unsafe_allow_html=True)
@@ -998,66 +1061,113 @@ def refraction_examination():
             st.session_state.exam_step = "functional_tests"
             st.rerun()
 
-    # 1) Vision Examination WITH ADD/DEG - IMPROVED LAYOUT
+    # 1) Vision Examination WITH ADD/DEG - COMPACT HORIZONTAL LAYOUT
     st.markdown("<div class='exam-section'><h4>Vision Examination</h4></div>", unsafe_allow_html=True)
     with st.form("vision_form"):
         st.markdown("**Habitual Correction**")
         habitual_type = st.selectbox("Type of Correction", 
                                    ["None", "Spectacles", "Soft Contact Lenses", "RGP", "Scleral", "Ortho-K", "Other"])
         
-        # IMPROVED LAYOUT - Eyes side by side with Dsph, Dcyl, Ax, Add, Deg
-        st.markdown("<div class='eye-comparison'>", unsafe_allow_html=True)
-        col_od, col_os = st.columns(2)
+        # COMPACT HORIZONTAL LAYOUT za habitual korekciju
+        st.markdown("**Habitual Correction Parameters**")
+        col_headers = st.columns(8)
+        with col_headers[0]:
+            st.write("**Eye**")
+        with col_headers[1]:
+            st.write("**Dsph**")
+        with col_headers[2]:
+            st.write("**Dcyl**")
+        with col_headers[3]:
+            st.write("**Ax**")
+        with col_headers[4]:
+            st.write("**Add**")
+        with col_headers[5]:
+            st.write("**Deg**")
+        with col_headers[6]:
+            st.write("**VA**")
+        with col_headers[7]:
+            st.write("**Mod**")
         
-        with col_od:
-            st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
-            # Dodani parametri Dsph, Dcyl, Ax, Add, Deg
-            h_od_dsph = st.text_input("Dsph OD", placeholder="e.g., -2.00", key="h_od_dsph")
-            h_od_dcyl = st.text_input("Dcyl OD", placeholder="e.g., -0.50", key="h_od_dcyl")
-            h_od_ax = st.text_input("Ax OD", placeholder="e.g., 180", key="h_od_ax")
-            h_od_add = st.text_input("Add OD", placeholder="e.g., +1.50", key="h_od_add")
-            h_od_deg = st.text_input("Deg OD", placeholder="e.g., 2.00", key="h_od_deg")
-            h_od_va = st.text_input("Habitual VA OD", placeholder="e.g., 1.0 or 20/20", key="h_od_va")
-            h_od_mod = st.text_input("Modifier OD", placeholder="-2", key="h_od_mod")
-            
-        with col_os:
-            st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
-            # Dodani parametri Dsph, Dcyl, Ax, Add, Deg
-            h_os_dsph = st.text_input("Dsph OS", placeholder="e.g., -2.00", key="h_os_dsph")
-            h_os_dcyl = st.text_input("Dcyl OS", placeholder="e.g., -0.50", key="h_os_dcyl")
-            h_os_ax = st.text_input("Ax OS", placeholder="e.g., 180", key="h_os_ax")
-            h_os_add = st.text_input("Add OS", placeholder="e.g., +1.50", key="h_os_add")
-            h_os_deg = st.text_input("Deg OS", placeholder="e.g., 2.00", key="h_os_deg")
-            h_os_va = st.text_input("Habitual VA OS", placeholder="e.g., 1.0 or 20/20", key="h_os_va")
-            h_os_mod = st.text_input("Modifier OS", placeholder="-2", key="h_os_mod")
+        col_od = st.columns(8)
+        with col_od[0]:
+            st.write("**OD**")
+        with col_od[1]:
+            h_od_dsph = st.text_input("Dsph OD", placeholder="-2.00", key="h_od_dsph", label_visibility="collapsed")
+        with col_od[2]:
+            h_od_dcyl = st.text_input("Dcyl OD", placeholder="-0.50", key="h_od_dcyl", label_visibility="collapsed")
+        with col_od[3]:
+            h_od_ax = st.text_input("Ax OD", placeholder="180", key="h_od_ax", label_visibility="collapsed")
+        with col_od[4]:
+            h_od_add = st.text_input("Add OD", placeholder="+1.50", key="h_od_add", label_visibility="collapsed")
+        with col_od[5]:
+            h_od_deg = st.text_input("Deg OD", placeholder="2.00", key="h_od_deg", label_visibility="collapsed")
+        with col_od[6]:
+            h_od_va = st.text_input("VA OD", placeholder="1.0", key="h_od_va", label_visibility="collapsed")
+        with col_od[7]:
+            h_od_mod = st.text_input("Mod OD", placeholder="-2", key="h_od_mod", label_visibility="collapsed")
         
-        st.markdown("</div>", unsafe_allow_html=True)
+        col_os = st.columns(8)
+        with col_os[0]:
+            st.write("**OS**")
+        with col_os[1]:
+            h_os_dsph = st.text_input("Dsph OS", placeholder="-2.00", key="h_os_dsph", label_visibility="collapsed")
+        with col_os[2]:
+            h_os_dcyl = st.text_input("Dcyl OS", placeholder="-0.50", key="h_os_dcyl", label_visibility="collapsed")
+        with col_os[3]:
+            h_os_ax = st.text_input("Ax OS", placeholder="180", key="h_os_ax", label_visibility="collapsed")
+        with col_os[4]:
+            h_os_add = st.text_input("Add OS", placeholder="+1.50", key="h_os_add", label_visibility="collapsed")
+        with col_os[5]:
+            h_os_deg = st.text_input("Deg OS", placeholder="2.00", key="h_os_deg", label_visibility="collapsed")
+        with col_os[6]:
+            h_os_va = st.text_input("VA OS", placeholder="1.0", key="h_os_va", label_visibility="collapsed")
+        with col_os[7]:
+            h_os_mod = st.text_input("Mod OS", placeholder="-2", key="h_os_mod", label_visibility="collapsed")
         
         # Binocular vision centrirano
         st.markdown("**Binocular Vision**")
-        col_bin1, col_bin2, col_bin3 = st.columns([1, 1, 1])
-        with col_bin1:
+        col_bin = st.columns(3)
+        with col_bin[0]:
             h_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20", key="h_bin_va")
-        with col_bin2:
+        with col_bin[1]:
             h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
-        with col_bin3:
+        with col_bin[2]:
             # Distance maknut iz habitual dijela
             pass
         
         st.markdown("**Uncorrected Vision**")
-        col_uc_od, col_uc_os = st.columns(2)
+        col_uc_headers = st.columns(4)
+        with col_uc_headers[0]:
+            st.write("**Eye**")
+        with col_uc_headers[1]:
+            st.write("**VA**")
+        with col_uc_headers[2]:
+            st.write("**Mod**")
+        with col_uc_headers[3]:
+            st.write("**Binocular**")
         
-        with col_uc_od:
-            st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
-            uc_od_va = st.text_input("Uncorrected VA OD", placeholder="e.g., 1.0 or 20/200", key="uc_od_va")
-            uc_od_mod = st.text_input("Modifier OD", placeholder="-2", key="uc_od_mod")
-            
-        with col_uc_os:
-            st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
-            uc_os_va = st.text_input("Uncorrected VA OS", placeholder="e.g., 1.0 or 20/200", key="uc_os_va")
-            uc_os_mod = st.text_input("Modifier OS", placeholder="-2", key="uc_os_mod")
+        col_uc_od = st.columns(4)
+        with col_uc_od[0]:
+            st.write("**OD**")
+        with col_uc_od[1]:
+            uc_od_va = st.text_input("Uncorrected VA OD", placeholder="1.0", key="uc_od_va", label_visibility="collapsed")
+        with col_uc_od[2]:
+            uc_od_mod = st.text_input("Modifier OD", placeholder="-2", key="uc_od_mod", label_visibility="collapsed")
+        with col_uc_od[3]:
+            uc_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0", key="uc_bin_va", label_visibility="collapsed")
         
-        vision_notes = st.text_area("Vision Notes", height=100, key="vision_notes")
+        col_uc_os = st.columns(4)
+        with col_uc_os[0]:
+            st.write("**OS**")
+        with col_uc_os[1]:
+            uc_os_va = st.text_input("Uncorrected VA OS", placeholder="1.0", key="uc_os_va", label_visibility="collapsed")
+        with col_uc_os[2]:
+            uc_os_mod = st.text_input("Modifier OS", placeholder="-2", key="uc_os_mod", label_visibility="collapsed")
+        with col_uc_os[3]:
+            # Empty space for alignment
+            st.write("")
+        
+        vision_notes = st.text_area("Vision Notes", height=60, key="vision_notes")
         
         submit_vision = st.form_submit_button("Save Vision Data", use_container_width=True)
         
@@ -1071,6 +1181,7 @@ def refraction_examination():
                 'habitual_deg_od': h_od_deg, 'habitual_deg_os': h_os_deg,
                 'uncorrected_od_va': uc_od_va, 'uncorrected_od_modifier': uc_od_mod,
                 'uncorrected_os_va': uc_os_va, 'uncorrected_os_modifier': uc_os_mod,
+                'uncorrected_binocular_va': uc_bin_va,
                 'vision_notes': vision_notes
             })
             st.success("Vision data saved!")
@@ -1085,21 +1196,51 @@ def refraction_examination():
         with col_method_time[1]:
             objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
         
-        col_obj1, col_obj2 = st.columns(2)
+        # COMPACT HORIZONTAL LAYOUT za objektivnu refrakciju
+        st.markdown("**Objective Refraction Parameters**")
+        col_obj_headers = st.columns(6)
+        with col_obj_headers[0]:
+            st.write("**Eye**")
+        with col_obj_headers[1]:
+            st.write("**Sphere**")
+        with col_obj_headers[2]:
+            st.write("**Cylinder**")
+        with col_obj_headers[3]:
+            st.write("**Axis**")
+        with col_obj_headers[4]:
+            st.write("**VA**")
+        with col_obj_headers[5]:
+            st.write("**Mod**")
         
-        with col_obj1:
-            st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
-            obj_od_sph = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="obj_od_sph")
-            obj_od_cyl = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="obj_od_cyl")
-            obj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="obj_od_axis")
+        col_obj_od = st.columns(6)
+        with col_obj_od[0]:
+            st.write("**OD**")
+        with col_obj_od[1]:
+            obj_od_sph = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="obj_od_sph", label_visibility="collapsed")
+        with col_obj_od[2]:
+            obj_od_cyl = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="obj_od_cyl", label_visibility="collapsed")
+        with col_obj_od[3]:
+            obj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="obj_od_axis", label_visibility="collapsed")
+        with col_obj_od[4]:
+            obj_od_va = st.text_input("VA OD", placeholder="1.0", key="obj_od_va", label_visibility="collapsed")
+        with col_obj_od[5]:
+            obj_od_mod = st.text_input("Mod OD", placeholder="-2", key="obj_od_mod", label_visibility="collapsed")
             
-        with col_obj2:
-            st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
-            obj_os_sph = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f", key="obj_os_sph")
-            obj_os_cyl = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="obj_os_cyl")
-            obj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="obj_os_axis")
+        col_obj_os = st.columns(6)
+        with col_obj_os[0]:
+            st.write("**OS**")
+        with col_obj_os[1]:
+            obj_os_sph = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f", key="obj_os_sph", label_visibility="collapsed")
+        with col_obj_os[2]:
+            obj_os_cyl = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="obj_os_cyl", label_visibility="collapsed")
+        with col_obj_os[3]:
+            obj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="obj_os_axis", label_visibility="collapsed")
+        with col_obj_os[4]:
+            obj_os_va = st.text_input("VA OS", placeholder="1.0", key="obj_os_va", label_visibility="collapsed")
+        with col_obj_os[5]:
+            obj_os_mod = st.text_input("Mod OS", placeholder="-2", key="obj_os_mod", label_visibility="collapsed")
             
-        objective_notes = st.text_area("Objective Notes", height=100, key="obj_notes")
+        objective_notes = st.text_area("Objective Notes", height=60, key="obj_notes")
         
         submit_objective = st.form_submit_button("Save Objective Data", use_container_width=True)
         
@@ -1118,25 +1259,61 @@ def refraction_examination():
     with st.form("subjective_form"):
         subj_method = st.selectbox("Subjective Method", ["Fogging", "With Cycloplegic", "Other"], key="subj_method")
         
-        col_subj1, col_subj2 = st.columns(2)
+        # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju
+        st.markdown("**Subjective Refraction Parameters**")
+        col_subj_headers = st.columns(8)
+        with col_subj_headers[0]:
+            st.write("**Eye**")
+        with col_subj_headers[1]:
+            st.write("**Sphere**")
+        with col_subj_headers[2]:
+            st.write("**Cylinder**")
+        with col_subj_headers[3]:
+            st.write("**Axis**")
+        with col_subj_headers[4]:
+            st.write("**VA**")
+        with col_subj_headers[5]:
+            st.write("**Add**")
+        with col_subj_headers[6]:
+            st.write("**Deg**")
+        with col_subj_headers[7]:
+            st.write("**Mod**")
         
-        with col_subj1:
-            st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
-            subj_od_sph = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="subj_od_sph")
-            subj_od_cyl = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="subj_od_cyl")
-            subj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_axis")
-            subj_od_va = st.text_input("Subjective VA OD", placeholder="e.g., 1.0 or 20/20", key="subj_od_va")
-            subj_od_add = st.text_input("ADD OD", placeholder="e.g., +1.50", key="subj_od_add")
-            subj_od_deg = st.text_input("DEG OD", placeholder="e.g., 2.00", key="subj_od_deg")
+        col_subj_od = st.columns(8)
+        with col_subj_od[0]:
+            st.write("**OD**")
+        with col_subj_od[1]:
+            subj_od_sph = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="subj_od_sph", label_visibility="collapsed")
+        with col_subj_od[2]:
+            subj_od_cyl = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="subj_od_cyl", label_visibility="collapsed")
+        with col_subj_od[3]:
+            subj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_axis", label_visibility="collapsed")
+        with col_subj_od[4]:
+            subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
+        with col_subj_od[5]:
+            subj_od_add = st.text_input("ADD OD", placeholder="+1.50", key="subj_od_add", label_visibility="collapsed")
+        with col_subj_od[6]:
+            subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
+        with col_subj_od[7]:
+            subj_od_mod = st.text_input("Mod OD", placeholder="-2", key="subj_od_mod", label_visibility="collapsed")
             
-        with col_subj2:
-            st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
-            subj_os_sph = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f", key="subj_os_sph")
-            subj_os_cyl = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="subj_os_cyl")
-            subj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_axis")
-            subj_os_va = st.text_input("Subjective VA OS", placeholder="e.g., 1.0 or 20/20", key="subj_os_va")
-            subj_os_add = st.text_input("ADD OS", placeholder="e.g., +1.50", key="subj_os_add")
-            subj_os_deg = st.text_input("DEG OS", placeholder="e.g., 2.00", key="subj_os_deg")
+        col_subj_os = st.columns(8)
+        with col_subj_os[0]:
+            st.write("**OS**")
+        with col_subj_os[1]:
+            subj_os_sph = st.number_input("Sphere OS", value=0.0, step=0.25, format="%.2f", key="subj_os_sph", label_visibility="collapsed")
+        with col_subj_os[2]:
+            subj_os_cyl = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="subj_os_cyl", label_visibility="collapsed")
+        with col_subj_os[3]:
+            subj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_axis", label_visibility="collapsed")
+        with col_subj_os[4]:
+            subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
+        with col_subj_os[5]:
+            subj_os_add = st.text_input("ADD OS", placeholder="+1.50", key="subj_os_add", label_visibility="collapsed")
+        with col_subj_os[6]:
+            subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
+        with col_subj_os[7]:
+            subj_os_mod = st.text_input("Mod OS", placeholder="-2", key="subj_os_mod", label_visibility="collapsed")
         
         # Distance s DEG Distance
         col_distance = st.columns(2)
@@ -1145,7 +1322,7 @@ def refraction_examination():
         with col_distance[1]:
             subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
         
-        subjective_notes = st.text_area("Subjective Notes", height=80, key="subj_notes")
+        subjective_notes = st.text_area("Subjective Notes", height=60, key="subj_notes")
         
         submit_subjective = st.form_submit_button("Save Subjective Data", use_container_width=True)
         
@@ -1165,23 +1342,61 @@ def refraction_examination():
     # 4) Final Prescription WITH ADD/DEG
     st.markdown("<div class='exam-section'><h4>Final Prescription</h4></div>", unsafe_allow_html=True)
     with st.form("final_form"):
-        col_final1, col_final2 = st.columns(2)
+        # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
+        st.markdown("**Final Prescription Parameters**")
+        col_final_headers = st.columns(8)
+        with col_final_headers[0]:
+            st.write("**Eye**")
+        with col_final_headers[1]:
+            st.write("**Sphere**")
+        with col_final_headers[2]:
+            st.write("**Cylinder**")
+        with col_final_headers[3]:
+            st.write("**Axis**")
+        with col_final_headers[4]:
+            st.write("**VA**")
+        with col_final_headers[5]:
+            st.write("**Add**")
+        with col_final_headers[6]:
+            st.write("**Deg**")
+        with col_final_headers[7]:
+            st.write("**Mod**")
         
-        with col_final1:
-            st.markdown("<div class='eye-column'><strong>Right Eye (OD) - Final</strong></div>", unsafe_allow_html=True)
-            final_od_sph = st.number_input("Final Sphere OD", value=0.0, step=0.25, format="%.2f", key="final_od_sph")
-            final_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f", key="final_od_cyl")
-            final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis")
-            final_add_od = st.text_input("Final ADD OD", placeholder="e.g., +1.50", key="final_add_od")
-            final_deg_od = st.text_input("Final DEG OD", placeholder="e.g., 2.00", key="final_deg_od")
+        col_final_od = st.columns(8)
+        with col_final_od[0]:
+            st.write("**OD**")
+        with col_final_od[1]:
+            final_od_sph = st.number_input("Final Sphere OD", value=0.0, step=0.25, format="%.2f", key="final_od_sph", label_visibility="collapsed")
+        with col_final_od[2]:
+            final_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f", key="final_od_cyl", label_visibility="collapsed")
+        with col_final_od[3]:
+            final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis", label_visibility="collapsed")
+        with col_final_od[4]:
+            final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
+        with col_final_od[5]:
+            final_add_od = st.text_input("Final ADD OD", placeholder="+1.50", key="final_add_od", label_visibility="collapsed")
+        with col_final_od[6]:
+            final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
+        with col_final_od[7]:
+            final_od_mod = st.text_input("Mod OD", placeholder="-2", key="final_od_mod", label_visibility="collapsed")
             
-        with col_final2:
-            st.markdown("<div class='eye-column'><strong>Left Eye (OS) - Final</strong></div>", unsafe_allow_html=True)
-            final_os_sph = st.number_input("Final Sphere OS", value=0.0, step=0.25, format="%.2f", key="final_os_sph")
-            final_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f", key="final_os_cyl")
-            final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis")
-            final_add_os = st.text_input("Final ADD OS", placeholder="e.g., +1.50", key="final_add_os")
-            final_deg_os = st.text_input("Final DEG OS", placeholder="e.g., 2.00", key="final_deg_os")
+        col_final_os = st.columns(8)
+        with col_final_os[0]:
+            st.write("**OS**")
+        with col_final_os[1]:
+            final_os_sph = st.number_input("Final Sphere OS", value=0.0, step=0.25, format="%.2f", key="final_os_sph", label_visibility="collapsed")
+        with col_final_os[2]:
+            final_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f", key="final_os_cyl", label_visibility="collapsed")
+        with col_final_os[3]:
+            final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis", label_visibility="collapsed")
+        with col_final_os[4]:
+            final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
+        with col_final_os[5]:
+            final_add_os = st.text_input("Final ADD OS", placeholder="+1.50", key="final_add_os", label_visibility="collapsed")
+        with col_final_os[6]:
+            final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
+        with col_final_os[7]:
+            final_os_mod = st.text_input("Mod OS", placeholder="-2", key="final_os_mod", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
         with col_bin1:
@@ -1192,7 +1407,12 @@ def refraction_examination():
         with col_bin2:
             # NPC maknut, DEG Distance dodan
             final_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="final_deg_distance")
-            prescription_notes = st.text_area("Prescription Notes", height=100, key="presc_notes")
+            prescription_notes = st.text_area("Prescription Notes", height=80, key="presc_notes")
+        
+        # Tabo Scheme Display
+        st.markdown("#### Tabo Scheme - Axis Visualization")
+        tabo_html = draw_tabo_scheme(final_od_axis, final_os_axis)
+        st.markdown(tabo_html, unsafe_allow_html=True)
         
         submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
         
@@ -1210,12 +1430,12 @@ def refraction_examination():
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
                         subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_add_od, subjective_deg_od,
-                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_notes,
+                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
                         binocular_balance, stereopsis,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_add_od, final_deg_od,
                         final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis, final_add_os, final_deg_os,
-                        final_prescribed_binocular_va, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        final_prescribed_binocular_va, final_deg_distance, prescription_notes
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, st.session_state.refraction.get('habitual_type'),
                     st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
@@ -1236,11 +1456,11 @@ def refraction_examination():
                     st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
                     st.session_state.refraction.get('subjective_os_sphere'), st.session_state.refraction.get('subjective_os_cylinder'), st.session_state.refraction.get('subjective_os_axis'), 
                     st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
-                    st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_notes'),
+                    st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
                     binocular_balance, stereopsis,
                     final_od_sph, final_od_cyl, final_od_axis, final_add_od, final_deg_od,
                     final_os_sph, final_os_cyl, final_os_axis, final_add_os, final_deg_os,
-                    final_bin_va, prescription_notes
+                    final_bin_va, final_deg_distance, prescription_notes
                 ))
                 conn.commit()
                 st.success("Refraction examination saved successfully!")
@@ -1978,6 +2198,9 @@ def patient_search():
         except Exception as e:
             st.error(f"Search error: {str(e)}")
 
+# -----------------------
+# USER MANAGEMENT WITH FIXED LICENSE EXPIRY
+# -----------------------
 def user_management():
     """Admin function to manage users and licenses"""
     if st.session_state.role != "admin":
@@ -2021,6 +2244,7 @@ def user_management():
         
         st.markdown("#### Existing Users")
         try:
+            # FIXED: Koristimo ispravan SQL upit sa postojećim stupcima
             users_df = pd.read_sql("SELECT id, username, role, license_expiry FROM users ORDER BY username", conn)
             if not users_df.empty:
                 for _, user in users_df.iterrows():
@@ -2030,8 +2254,12 @@ def user_management():
                     with col_role:
                         st.write(user['role'])
                     with col_license:
-                        expiry_color = "🟢" if pd.to_datetime(user['license_expiry']).date() > date.today() else "🔴"
-                        st.write(f"{expiry_color} {user['license_expiry']}")
+                        if user['license_expiry']:
+                            expiry_date = pd.to_datetime(user['license_expiry']).date()
+                            expiry_color = "🟢" if expiry_date > date.today() else "🔴"
+                            st.write(f"{expiry_color} {user['license_expiry']}")
+                        else:
+                            st.write("No expiry")
                     with col_action:
                         if user['username'] != st.session_state.username:
                             if st.button("Delete", key=f"del_{user['id']}"):
@@ -2231,7 +2459,8 @@ def login_page():
     col_logo, col_form = st.columns([1, 2])
     
     with col_logo:
-        st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=200)
+        # POVEĆAN LOGO - duplo veći (width=400 umjesto 200)
+        st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=400)
         # Uklonjen dupli naslov "OPHTALCAM Clinical Management System"
     
     with col_form:
