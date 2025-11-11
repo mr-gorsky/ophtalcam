@@ -410,6 +410,246 @@ def check_license_expiry():
         pass
     return True
 
+def get_recent_patients(limit=5):
+    """Get recently registered patients"""
+    conn = init_db()
+    try:
+        patients = pd.read_sql('''
+            SELECT patient_id, first_name, last_name, date_of_birth, created_date 
+            FROM patients 
+            ORDER BY created_date DESC 
+            LIMIT ?
+        ''', conn, params=(limit,))
+        return patients
+    except Exception:
+        return pd.DataFrame()
+
+def get_upcoming_appointments(days=7):
+    """Get upcoming appointments for the next days"""
+    conn = init_db()
+    try:
+        start_date = date.today()
+        end_date = start_date + timedelta(days=days)
+        appointments = pd.read_sql('''
+            SELECT a.*, p.first_name, p.last_name, p.patient_id 
+            FROM appointments a 
+            JOIN patients p ON a.patient_id = p.id 
+            WHERE DATE(a.appointment_date) BETWEEN ? AND ?
+            ORDER BY a.appointment_date
+        ''', conn, params=(start_date, end_date))
+        return appointments
+    except Exception:
+        return pd.DataFrame()
+
+def schedule_appointment():
+    """Function to schedule new appointments"""
+    st.markdown("<h2 class='main-header'>Schedule Appointment</h2>", unsafe_allow_html=True)
+    
+    with st.form("appointment_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Patient search and selection
+            patients_df = pd.read_sql("SELECT patient_id, first_name, last_name FROM patients ORDER BY last_name, first_name", conn)
+            if not patients_df.empty:
+                patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients_df.iterrows()]
+                selected_patient = st.selectbox("Select Patient", patient_options)
+                patient_id = selected_patient.split(" - ")[0] if selected_patient else None
+            else:
+                st.info("No patients found. Please register patients first.")
+                patient_id = None
+            
+            appointment_date = st.date_input("Appointment Date", value=date.today())
+            appointment_time = st.time_input("Appointment Time", value=datetime.now().time())
+            
+        with col2:
+            appointment_type = st.selectbox("Appointment Type", 
+                                          ["Routine Examination", "Contact Lens Fitting", "Post-operative Check", 
+                                           "Emergency", "Consultation", "Follow-up", "Other"])
+            duration = st.number_input("Duration (minutes)", min_value=15, max_value=180, value=30, step=15)
+            status = st.selectbox("Status", ["Scheduled", "Confirmed", "Cancelled", "Completed"])
+        
+        notes = st.text_area("Appointment Notes", placeholder="Additional notes or instructions...")
+        
+        if st.form_submit_button("Schedule Appointment", use_container_width=True):
+            if patient_id:
+                try:
+                    # Get patient database ID
+                    patient_db_id = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]['id']
+                    
+                    # Combine date and time
+                    appointment_datetime = datetime.combine(appointment_date, appointment_time)
+                    
+                    c = conn.cursor()
+                    c.execute('''
+                        INSERT INTO appointments 
+                        (patient_id, appointment_date, duration_minutes, appointment_type, status, notes)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (patient_db_id, appointment_datetime, duration, appointment_type, status, notes))
+                    conn.commit()
+                    st.success(f"Appointment scheduled successfully for {appointment_datetime.strftime('%d.%m.%Y %H:%M')}")
+                except Exception as e:
+                    st.error(f"Error scheduling appointment: {str(e)}")
+            else:
+                st.error("Please select a patient")
+
+def view_patient_history():
+    """View comprehensive patient history"""
+    if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
+        st.info("Please select a patient first from Patient Search")
+        return
+    
+    pid = st.session_state.selected_patient
+    
+    try:
+        patient_info = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(pid,)).iloc[0]
+        st.markdown(f"<h2 class='main-header'>Patient History: {patient_info['first_name']} {patient_info['last_name']}</h2>", unsafe_allow_html=True)
+        
+        # Patient基本信息
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Patient Information")
+            st.write(f"**Patient ID:** {patient_info['patient_id']}")
+            st.write(f"**Date of Birth:** {patient_info['date_of_birth']}")
+            st.write(f"**Gender:** {patient_info['gender']}")
+            st.write(f"**Phone:** {patient_info['phone']}")
+        with col2:
+            st.write(f"**Email:** {patient_info['email']}")
+            st.write(f"**ID Number:** {patient_info['id_number']}")
+            st.write(f"**Emergency Contact:** {patient_info['emergency_contact']}")
+            st.write(f"**Insurance:** {patient_info['insurance_info']}")
+        
+        # Medical History
+        st.markdown("#### Medical History")
+        medical_history = pd.read_sql('''
+            SELECT * FROM medical_history 
+            WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?)
+            ORDER BY visit_date DESC
+        ''', conn, params=(pid,))
+        
+        if not medical_history.empty:
+            for _, record in medical_history.iterrows():
+                with st.expander(f"Medical History - {record['visit_date'][:10]}"):
+                    col_mh1, col_mh2 = st.columns(2)
+                    with col_mh1:
+                        st.write(f"**General Health:** {record['general_health']}")
+                        st.write(f"**Medications:** {record['current_medications']}")
+                        st.write(f"**Allergies:** {record['allergies']}")
+                    with col_mh2:
+                        st.write(f"**Ocular History:** {record['ocular_history']}")
+                        st.write(f"**Family History:** {record['family_history']}")
+                        st.write(f"**Last Eye Exam:** {record['last_eye_exam']}")
+        else:
+            st.info("No medical history records found.")
+        
+        # Refraction History
+        st.markdown("#### Refraction History")
+        refraction_history = pd.read_sql('''
+            SELECT * FROM refraction_exams 
+            WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?)
+            ORDER BY exam_date DESC
+        ''', conn, params=(pid,))
+        
+        if not refraction_history.empty:
+            for _, record in refraction_history.iterrows():
+                with st.expander(f"Refraction - {record['exam_date'][:10]}"):
+                    col_ref1, col_ref2 = st.columns(2)
+                    with col_ref1:
+                        st.write(f"**OD:** {record.get('final_prescribed_od_sphere', '')} {record.get('final_prescribed_od_cylinder', '')} x {record.get('final_prescribed_od_axis', '')}")
+                        st.write(f"**ADD OD:** {record.get('final_add_od', '')}")
+                    with col_ref2:
+                        st.write(f"**OS:** {record.get('final_prescribed_os_sphere', '')} {record.get('final_prescribed_os_cylinder', '')} x {record.get('final_prescribed_os_axis', '')}")
+                        st.write(f"**ADD OS:** {record.get('final_add_os', '')}")
+        
+        # Appointment History
+        st.markdown("#### Appointment History")
+        appointment_history = pd.read_sql('''
+            SELECT a.*, p.first_name, p.last_name 
+            FROM appointments a 
+            JOIN patients p ON a.patient_id = p.id 
+            WHERE p.patient_id = ?
+            ORDER BY a.appointment_date DESC
+        ''', conn, params=(pid,))
+        
+        if not appointment_history.empty:
+            for _, apt in appointment_history.iterrows():
+                apt_time = pd.to_datetime(apt['appointment_date']).strftime('%d.%m.%Y %H:%M')
+                st.write(f"**{apt_time}** - {apt['appointment_type']} ({apt['status']})")
+                if apt['notes']:
+                    st.caption(f"Notes: {apt['notes']}")
+        else:
+            st.info("No appointment history found.")
+            
+    except Exception as e:
+        st.error(f"Error loading patient history: {str(e)}")
+
+def clinical_analytics():
+    """Clinical analytics and reporting"""
+    st.markdown("<h2 class='main-header'>Clinical Analytics</h2>", unsafe_allow_html=True)
+    
+    try:
+        # Basic statistics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_patients = pd.read_sql("SELECT COUNT(*) as count FROM patients", conn).iloc[0]['count']
+            st.metric("Total Patients", total_patients)
+        
+        with col2:
+            total_exams = pd.read_sql("SELECT COUNT(*) as count FROM refraction_exams", conn).iloc[0]['count']
+            st.metric("Total Examinations", total_exams)
+        
+        with col3:
+            total_cl = pd.read_sql("SELECT COUNT(*) as count FROM contact_lens_prescriptions", conn).iloc[0]['count']
+            st.metric("Contact Lens Fittings", total_cl)
+        
+        with col4:
+            today_appointments = pd.read_sql('''
+                SELECT COUNT(*) as count FROM appointments 
+                WHERE DATE(appointment_date) = ?
+            ''', conn, params=(date.today(),)).iloc[0]['count']
+            st.metric("Today's Appointments", today_appointments)
+        
+        # Recent activity
+        st.markdown("#### Recent Activity")
+        col_act1, col_act2 = st.columns(2)
+        
+        with col_act1:
+            st.markdown("**Recent Patients**")
+            recent_patients = get_recent_patients(5)
+            if not recent_patients.empty:
+                for _, patient in recent_patients.iterrows():
+                    st.write(f"{patient['first_name']} {patient['last_name']} ({patient['patient_id']})")
+                    st.caption(f"Registered: {patient['created_date'][:10]}")
+            else:
+                st.info("No patients found")
+        
+        with col_act2:
+            st.markdown("**Upcoming Appointments**")
+            upcoming_appointments = get_upcoming_appointments(7)
+            if not upcoming_appointments.empty:
+                for _, apt in upcoming_appointments.iterrows():
+                    apt_time = pd.to_datetime(apt['appointment_date']).strftime('%d.%m.%Y %H:%M')
+                    st.write(f"**{apt_time}** - {apt['first_name']} {apt['last_name']}")
+                    st.caption(f"{apt['appointment_type']} - {apt['status']}")
+            else:
+                st.info("No upcoming appointments")
+        
+        # Examination statistics
+        st.markdown("#### Examination Types")
+        exam_stats = pd.read_sql('''
+            SELECT appointment_type, COUNT(*) as count 
+            FROM appointments 
+            GROUP BY appointment_type 
+            ORDER BY count DESC
+        ''', conn)
+        
+        if not exam_stats.empty:
+            st.dataframe(exam_stats, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Error loading analytics: {str(e)}")
+
 # Professional CSS
 def load_css():
     st.markdown("""
@@ -443,25 +683,29 @@ def load_css():
         border: 1px solid #e0e0e0;
         margin-bottom: 1rem;
     }
-    .professional-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1rem 0;
+    .appointment-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 6px;
+        border-left: 4px solid #1e3c72;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .professional-table th, .professional-table td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
+    .calendar-day {
+        text-align: center;
+        padding: 5px;
+        margin: 2px;
+        border-radius: 4px;
     }
-    .professional-table th {
-        background-color: #1e3c72;
+    .calendar-day.today {
+        background: #1e3c72;
         color: white;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # -----------------------
-# PROFESSIONAL DASHBOARD
+# PROFESSIONAL DASHBOARD - COMPLETELY FUNCTIONAL
 # -----------------------
 def show_dashboard():
     st.markdown("<h1 class='main-header'>OphtalCAM Clinical Dashboard</h1>", unsafe_allow_html=True)
@@ -484,9 +728,8 @@ def show_dashboard():
             st.session_state.menu = "Schedule Appointment"
             st.rerun()
     with col_actions[3]:
-        if st.button("Begin Examination", use_container_width=True, key="begin_exam_dash"):
-            st.session_state.menu = "Patient Search"
-            st.info("Please select a patient first")
+        if st.button("Clinical Analytics", use_container_width=True, key="analytics_dash"):
+            st.session_state.menu = "Clinical Analytics"
             st.rerun()
 
     # Stats
@@ -506,10 +749,10 @@ def show_dashboard():
         appts = get_todays_appointments()
         if not appts.empty:
             for idx, apt in appts.iterrows():
-                t = pd.to_datetime(apt['appointment_date']).strftime('%H:%M')
                 with st.container():
-                    col_a, col_b = st.columns([3, 1])
+                    col_a, col_b, col_c = st.columns([3, 1, 1])
                     with col_a:
+                        t = pd.to_datetime(apt['appointment_date']).strftime('%H:%M')
                         st.markdown(f"**{t}** - {apt['first_name']} {apt['last_name']} ({apt['patient_id']})")
                         st.caption(f"{apt['appointment_type']} | {apt['status']}")
                     with col_b:
@@ -518,14 +761,42 @@ def show_dashboard():
                             st.session_state.menu = "Examination Protocol"
                             st.session_state.exam_step = "medical_history"
                             st.rerun()
+                    with col_c:
+                        if st.button("History", key=f"history_{apt['id']}", use_container_width=True):
+                            st.session_state.selected_patient = apt['patient_id']
+                            st.session_state.menu = "Patient History"
+                            st.rerun()
         else:
             st.info("No appointments scheduled for today.")
+            
+        # Recent Patients Section
+        st.subheader("Recent Patients")
+        recent_patients = get_recent_patients(5)
+        if not recent_patients.empty:
+            for _, patient in recent_patients.iterrows():
+                col_pat1, col_pat2, col_pat3 = st.columns([3, 1, 1])
+                with col_pat1:
+                    st.write(f"**{patient['first_name']} {patient['last_name']}** ({patient['patient_id']})")
+                    st.caption(f"DOB: {patient['date_of_birth']} | Registered: {patient['created_date'][:10]}")
+                with col_pat2:
+                    if st.button("Examine", key=f"exam_{patient['patient_id']}", use_container_width=True):
+                        st.session_state.selected_patient = patient['patient_id']
+                        st.session_state.menu = "Examination Protocol"
+                        st.session_state.exam_step = "medical_history"
+                        st.rerun()
+                with col_pat3:
+                    if st.button("History", key=f"phist_{patient['patient_id']}", use_container_width=True):
+                        st.session_state.selected_patient = patient['patient_id']
+                        st.session_state.menu = "Patient History"
+                        st.rerun()
+        else:
+            st.info("No patients registered yet.")
 
     with col_main[1]:
         st.subheader("Calendar")
         today = datetime.now()
         
-        # Current month calendar
+        # Current month calendar - FUNCTIONAL
         cal = calendar.monthcalendar(today.year, today.month)
         st.write(f"**{today.strftime('%B %Y')}**")
         
@@ -535,7 +806,7 @@ def show_dashboard():
         for i, day in enumerate(days):
             header_cols[i].write(f"**{day}**")
         
-        # Calendar days
+        # Calendar days - INTERACTIVE
         for week in cal:
             week_cols = st.columns(7)
             for i, day in enumerate(week):
@@ -544,21 +815,45 @@ def show_dashboard():
                 else:
                     day_str = str(day)
                     if day == today.day:
-                        week_cols[i].markdown(f"<div style='background:#1e3c72;color:white;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;margin:0 auto;'><strong>{day_str}</strong></div>", unsafe_allow_html=True)
+                        # Highlight today
+                        week_cols[i].markdown(
+                            f"<div class='calendar-day today'><strong>{day_str}</strong></div>", 
+                            unsafe_allow_html=True
+                        )
                     else:
-                        week_cols[i].write(day_str)
+                        # Make days clickable
+                        if week_cols[i].button(day_str, key=f"day_{day}", use_container_width=True):
+                            selected_date = date(today.year, today.month, day)
+                            st.session_state.selected_calendar_date = selected_date
+                            st.info(f"Selected date: {selected_date.strftime('%d.%m.%Y')}")
+                            # Here you could show appointments for selected date
         
         st.markdown("---")
-        st.subheader("Quick Links")
-        if st.button("Clinical Analytics", use_container_width=True):
-            st.session_state.menu = "Clinical Analytics"
+        
+        # Quick Actions
+        st.subheader("Quick Actions")
+        if st.button("View All Appointments", use_container_width=True):
+            st.session_state.menu = "Schedule Appointment"
             st.rerun()
-        if st.button("Contact Lenses", use_container_width=True):
+            
+        if st.button("Contact Lens Management", use_container_width=True):
             st.session_state.menu = "Contact Lenses"
             st.rerun()
+            
         if st.button("System Settings", use_container_width=True) and st.session_state.role == "admin":
             st.session_state.menu = "System Settings"
             st.rerun()
+        
+        # Upcoming Appointments
+        st.subheader("Upcoming Appointments")
+        upcoming = get_upcoming_appointments(3)
+        if not upcoming.empty:
+            for _, apt in upcoming.iterrows():
+                apt_time = pd.to_datetime(apt['appointment_date']).strftime('%d.%m.%Y %H:%M')
+                st.write(f"**{apt_time}**")
+                st.caption(f"{apt['first_name']} {apt['last_name']} - {apt['appointment_type']}")
+        else:
+            st.info("No upcoming appointments")
 
 # -----------------------
 # EXAMINATION PROTOCOL FLOW WITH IMPROVED LAYOUT
@@ -1423,7 +1718,7 @@ def generate_report():
         if st.button("Generate Printable Report", use_container_width=True):
             # Create comprehensive professional report
             report_content = f"""
-PHANTASMED MEDICAL SYSTEMS - CLINICAL REPORT
+OPHTALCAM CLINICAL MANAGEMENT SYSTEM - CLINICAL REPORT
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 CLINICIAN INFORMATION:
@@ -1753,6 +2048,12 @@ def main_navigation():
             st.info("Please select a patient from Patient Search to begin examination.")
         elif st.session_state.menu == "Contact Lenses":
             contact_lenses()
+        elif st.session_state.menu == "Schedule Appointment":
+            schedule_appointment()
+        elif st.session_state.menu == "Patient History":
+            view_patient_history()
+        elif st.session_state.menu == "Clinical Analytics":
+            clinical_analytics()
         elif st.session_state.menu == "System Settings" and st.session_state.role == "admin":
             user_management()
         else:
@@ -1765,8 +2066,8 @@ def login_page():
     col_logo, col_form = st.columns([1, 2])
     
     with col_logo:
-        st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=200)
-        st.markdown("<div style='text-align:center;'><h3>PHANTASMED</h3><p>Medical Systems</p></div>", unsafe_allow_html=True)
+        st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=200)
+        st.markdown("<div style='text-align:center;'><h3>OPHTALCAM</h3><p>Clinical Management System</p></div>", unsafe_allow_html=True)
     
     with col_form:
         st.markdown("### Clinical Login")
@@ -1811,6 +2112,8 @@ def main():
         st.session_state.menu = "Dashboard"
     if 'exam_step' not in st.session_state:
         st.session_state.exam_step = None
+    if 'selected_calendar_date' not in st.session_state:
+        st.session_state.selected_calendar_date = None
 
     if not st.session_state.logged_in:
         login_page()
@@ -1818,7 +2121,7 @@ def main():
         # Professional header
         col_header1, col_header2, col_header3 = st.columns([2, 1, 1])
         with col_header1:
-            st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=150)
+            st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=150)
         with col_header2:
             st.write(f"**Clinician:** {st.session_state.username}")
             st.write(f"**Role:** {st.session_state.role}")
