@@ -318,6 +318,19 @@ def init_db():
         )
     ''')
 
+    # Appointment schedule settings
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS appointment_schedule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            day_of_week INTEGER NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            appointment_duration INTEGER DEFAULT 30,
+            max_appointments INTEGER DEFAULT 10,
+            is_active BOOLEAN DEFAULT TRUE
+        )
+    ''')
+
     # Default admin + groups
     try:
         admin_hash = hashlib.sha256("admin123".encode()).hexdigest()
@@ -908,9 +921,16 @@ def medical_history():
             occupation = st.text_input("Occupation")
             hobbies = st.text_area("Hobbies/Activities", height=60)
         
-        uploaded = st.file_uploader("Upload medical reports (PDF/JPG/PNG)", 
-                                  type=['pdf', 'jpg', 'png'], 
-                                  accept_multiple_files=True)
+        # Dodana Run Ophtalcam Device tipka
+        col_device1, col_device2 = st.columns(2)
+        with col_device1:
+            uploaded = st.file_uploader("Upload medical reports (PDF/JPG/PNG)", 
+                                      type=['pdf', 'jpg', 'png'], 
+                                      accept_multiple_files=True)
+        with col_device2:
+            st.markdown("#### OphtalCAM Device")
+            if st.button("Run Ophtalcam Device", use_container_width=True, key="run_ophtalcam_mh"):
+                st.info("OphtalCAM device integration would be implemented here")
         
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
@@ -985,25 +1005,44 @@ def refraction_examination():
         habitual_type = st.selectbox("Type of Correction", 
                                    ["None", "Spectacles", "Soft Contact Lenses", "RGP", "Scleral", "Ortho-K", "Other"])
         
-        # IMPROVED LAYOUT - Eyes side by side
+        # IMPROVED LAYOUT - Eyes side by side with Dsph, Dcyl, Ax, Add, Deg
         st.markdown("<div class='eye-comparison'>", unsafe_allow_html=True)
         col_od, col_os = st.columns(2)
         
         with col_od:
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
+            # Dodani parametri Dsph, Dcyl, Ax, Add, Deg
+            h_od_dsph = st.text_input("Dsph OD", placeholder="e.g., -2.00", key="h_od_dsph")
+            h_od_dcyl = st.text_input("Dcyl OD", placeholder="e.g., -0.50", key="h_od_dcyl")
+            h_od_ax = st.text_input("Ax OD", placeholder="e.g., 180", key="h_od_ax")
+            h_od_add = st.text_input("Add OD", placeholder="e.g., +1.50", key="h_od_add")
+            h_od_deg = st.text_input("Deg OD", placeholder="e.g., 2.00", key="h_od_deg")
             h_od_va = st.text_input("Habitual VA OD", placeholder="e.g., 1.0 or 20/20", key="h_od_va")
             h_od_mod = st.text_input("Modifier OD", placeholder="-2", key="h_od_mod")
-            h_od_add = st.text_input("ADD OD", placeholder="e.g., +1.50", key="h_od_add")
-            h_od_deg = st.text_input("DEG OD", placeholder="e.g., 2.00", key="h_od_deg")
             
         with col_os:
             st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
+            # Dodani parametri Dsph, Dcyl, Ax, Add, Deg
+            h_os_dsph = st.text_input("Dsph OS", placeholder="e.g., -2.00", key="h_os_dsph")
+            h_os_dcyl = st.text_input("Dcyl OS", placeholder="e.g., -0.50", key="h_os_dcyl")
+            h_os_ax = st.text_input("Ax OS", placeholder="e.g., 180", key="h_os_ax")
+            h_os_add = st.text_input("Add OS", placeholder="e.g., +1.50", key="h_os_add")
+            h_os_deg = st.text_input("Deg OS", placeholder="e.g., 2.00", key="h_os_deg")
             h_os_va = st.text_input("Habitual VA OS", placeholder="e.g., 1.0 or 20/20", key="h_os_va")
             h_os_mod = st.text_input("Modifier OS", placeholder="-2", key="h_os_mod")
-            h_os_add = st.text_input("ADD OS", placeholder="e.g., +1.50", key="h_os_add")
-            h_os_deg = st.text_input("DEG OS", placeholder="e.g., 2.00", key="h_os_deg")
         
         st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Binocular vision centrirano
+        st.markdown("**Binocular Vision**")
+        col_bin1, col_bin2, col_bin3 = st.columns([1, 1, 1])
+        with col_bin1:
+            h_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20", key="h_bin_va")
+        with col_bin2:
+            h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
+        with col_bin3:
+            # Distance maknut iz habitual dijela
+            pass
         
         st.markdown("**Uncorrected Vision**")
         col_uc_od, col_uc_os = st.columns(2)
@@ -1018,14 +1057,6 @@ def refraction_examination():
             uc_os_va = st.text_input("Uncorrected VA OS", placeholder="e.g., 1.0 or 20/200", key="uc_os_va")
             uc_os_mod = st.text_input("Modifier OS", placeholder="-2", key="uc_os_mod")
         
-        st.markdown("**Binocular Vision**")
-        col_bin1, col_bin2 = st.columns(2)
-        with col_bin1:
-            h_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20", key="h_bin_va")
-            h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
-        with col_bin2:
-            habitual_distance = st.text_input("Distance", placeholder="e.g., 6m", key="habitual_distance")
-        
         vision_notes = st.text_area("Vision Notes", height=100, key="vision_notes")
         
         submit_vision = st.form_submit_button("Save Vision Data", use_container_width=True)
@@ -1038,7 +1069,6 @@ def refraction_examination():
                 'habitual_binocular_va': h_bin_va, 'habitual_pd': h_pd,
                 'habitual_add_od': h_od_add, 'habitual_add_os': h_os_add,
                 'habitual_deg_od': h_od_deg, 'habitual_deg_os': h_os_deg,
-                'habitual_distance': habitual_distance,
                 'uncorrected_od_va': uc_od_va, 'uncorrected_od_modifier': uc_od_mod,
                 'uncorrected_os_va': uc_os_va, 'uncorrected_os_modifier': uc_os_mod,
                 'vision_notes': vision_notes
@@ -1048,12 +1078,16 @@ def refraction_examination():
     # 2) Objective Refraction
     st.markdown("<div class='exam-section'><h4>Objective Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("objective_form"):
+        # Metoda i vrijeme jedno pored drugog
+        col_method_time = st.columns(2)
+        with col_method_time[0]:
+            objective_method = st.selectbox("Method", ["Autorefractor", "Retinoscopy", "Other"], key="obj_method")
+        with col_method_time[1]:
+            objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
+        
         col_obj1, col_obj2 = st.columns(2)
         
         with col_obj1:
-            objective_method = st.selectbox("Method", ["Autorefractor", "Retinoscopy", "Other"], key="obj_method")
-            objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
-            
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
             obj_od_sph = st.number_input("Sphere OD", value=0.0, step=0.25, format="%.2f", key="obj_od_sph")
             obj_od_cyl = st.number_input("Cylinder OD", value=0.0, step=0.25, format="%.2f", key="obj_od_cyl")
@@ -1065,7 +1099,7 @@ def refraction_examination():
             obj_os_cyl = st.number_input("Cylinder OS", value=0.0, step=0.25, format="%.2f", key="obj_os_cyl")
             obj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="obj_os_axis")
             
-            objective_notes = st.text_area("Objective Notes", height=100, key="obj_notes")
+        objective_notes = st.text_area("Objective Notes", height=100, key="obj_notes")
         
         submit_objective = st.form_submit_button("Save Objective Data", use_container_width=True)
         
@@ -1104,7 +1138,13 @@ def refraction_examination():
             subj_os_add = st.text_input("ADD OS", placeholder="e.g., +1.50", key="subj_os_add")
             subj_os_deg = st.text_input("DEG OS", placeholder="e.g., 2.00", key="subj_os_deg")
         
-        subjective_distance = st.text_input("Distance", placeholder="e.g., 6m", key="subj_distance")
+        # Distance s DEG Distance
+        col_distance = st.columns(2)
+        with col_distance[0]:
+            subjective_distance = st.text_input("Distance", placeholder="e.g., 6m", key="subj_distance")
+        with col_distance[1]:
+            subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
+        
         subjective_notes = st.text_area("Subjective Notes", height=80, key="subj_notes")
         
         submit_subjective = st.form_submit_button("Save Subjective Data", use_container_width=True)
@@ -1117,6 +1157,7 @@ def refraction_examination():
                 'subjective_os_sphere': subj_os_sph, 'subjective_os_cylinder': subj_os_cyl, 'subjective_os_axis': subj_os_axis,
                 'subjective_os_va': subj_os_va, 'subjective_add_os': subj_os_add, 'subjective_deg_os': subj_os_deg,
                 'subjective_distance': subjective_distance,
+                'subjective_deg_distance': subjective_deg_distance,
                 'subjective_notes': subjective_notes
             })
             st.success("Subjective data saved!")
@@ -1147,11 +1188,10 @@ def refraction_examination():
             binocular_balance = st.selectbox("Binocular Balance", ["Balanced", "OD dominant", "OS dominant", "Unbalanced"], key="bin_balance")
             stereopsis = st.text_input("Stereoacuity", placeholder="e.g., 40 arcsec", key="stereopsis")
             final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 or 20/20", key="final_bin_va")
-            final_distance = st.text_input("Final Distance", placeholder="e.g., 6m", key="final_distance")
             
         with col_bin2:
-            npc_break = st.text_input("NPC Break", placeholder="e.g., 5 cm", key="npc_break")
-            npc_recovery = st.text_input("NPC Recovery", placeholder="e.g., 7 cm", key="npc_recovery")
+            # NPC maknut, DEG Distance dodan
+            final_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="final_deg_distance")
             prescription_notes = st.text_area("Prescription Notes", height=100, key="presc_notes")
         
         submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
@@ -1165,17 +1205,17 @@ def refraction_examination():
                 c.execute('''
                     INSERT INTO refraction_exams (
                         patient_id, habitual_type, habitual_od_va, habitual_od_modifier, habitual_os_va, habitual_os_modifier,
-                        habitual_binocular_va, habitual_pd, habitual_add_od, habitual_add_os, habitual_deg_od, habitual_deg_os, habitual_distance,
+                        habitual_binocular_va, habitual_pd, habitual_add_od, habitual_add_os, habitual_deg_od, habitual_deg_os,
                         vision_notes, uncorrected_od_va, uncorrected_od_modifier, uncorrected_os_va, uncorrected_os_modifier, uncorrected_binocular_va,
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
                         subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_add_od, subjective_deg_od,
                         subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_notes,
-                        binocular_balance, stereopsis, near_point_convergence_break, near_point_convergence_recovery,
+                        binocular_balance, stereopsis,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_add_od, final_deg_od,
                         final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis, final_add_os, final_deg_os,
-                        final_prescribed_binocular_va, final_distance, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        final_prescribed_binocular_va, prescription_notes
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, st.session_state.refraction.get('habitual_type'),
                     st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
@@ -1183,7 +1223,7 @@ def refraction_examination():
                     st.session_state.refraction.get('habitual_binocular_va'), st.session_state.refraction.get('habitual_pd'),
                     st.session_state.refraction.get('habitual_add_od'), st.session_state.refraction.get('habitual_add_os'),
                     st.session_state.refraction.get('habitual_deg_od'), st.session_state.refraction.get('habitual_deg_os'),
-                    st.session_state.refraction.get('habitual_distance'), st.session_state.refraction.get('vision_notes'),
+                    st.session_state.refraction.get('vision_notes'),
                     st.session_state.refraction.get('uncorrected_od_va'), st.session_state.refraction.get('uncorrected_od_modifier'),
                     st.session_state.refraction.get('uncorrected_os_va'), st.session_state.refraction.get('uncorrected_os_modifier'),
                     st.session_state.refraction.get('uncorrected_binocular_va'),
@@ -1197,10 +1237,10 @@ def refraction_examination():
                     st.session_state.refraction.get('subjective_os_sphere'), st.session_state.refraction.get('subjective_os_cylinder'), st.session_state.refraction.get('subjective_os_axis'), 
                     st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
                     st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_notes'),
-                    binocular_balance, stereopsis, npc_break, npc_recovery,
+                    binocular_balance, stereopsis,
                     final_od_sph, final_od_cyl, final_od_axis, final_add_od, final_deg_od,
                     final_os_sph, final_os_cyl, final_os_axis, final_add_os, final_deg_os,
-                    final_bin_va, final_distance, prescription_notes
+                    final_bin_va, prescription_notes
                 ))
                 conn.commit()
                 st.success("Refraction examination saved successfully!")
@@ -1703,7 +1743,7 @@ def generate_report():
             with col_ref2:
                 st.write(f"**OS:** {ref.get('final_prescribed_os_sphere', '')} {ref.get('final_prescribed_os_cylinder', '')} x {ref.get('final_prescribed_os_axis', '')}")
                 st.write(f"**ADD OS:** {ref.get('final_add_os', '')} | **DEG OS:** {ref.get('final_deg_os', '')}")
-            st.write(f"**Distance:** {ref.get('final_distance', '')} | **Binocular VA:** {ref.get('final_prescribed_binocular_va', '')}")
+            st.write(f"**Binocular VA:** {ref.get('final_prescribed_binocular_va', '')}")
 
         # Anterior Segment
         anterior_data = pd.read_sql('''
@@ -1946,7 +1986,7 @@ def user_management():
         
     st.markdown("<h2 class='main-header'>User Management & License Control</h2>", unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["User Management", "License Settings"])
+    tab1, tab2, tab3 = st.tabs(["User Management", "Appointment Schedule", "Patient Groups"])
     
     with tab1:
         st.markdown("#### Add New User")
@@ -2004,22 +2044,110 @@ def user_management():
                 st.info("No users found.")
         except Exception as e:
             st.error(f"Error loading users: {str(e)}")
+    
+    with tab2:
+        st.markdown("#### Appointment Schedule Settings")
+        
+        # Define working hours for each day
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        
+        for day_idx, day_name in enumerate(days):
+            with st.expander(f"{day_name} Schedule"):
+                col_day1, col_day2, col_day3 = st.columns(3)
+                
+                with col_day1:
+                    start_time = st.time_input(f"{day_name} Start", value=datetime.strptime("08:00", "%H:%M").time(), key=f"start_{day_idx}")
+                with col_day2:
+                    end_time = st.time_input(f"{day_name} End", value=datetime.strptime("17:00", "%H:%M").time(), key=f"end_{day_idx}")
+                with col_day3:
+                    duration = st.number_input(f"{day_name} Duration (min)", min_value=15, max_value=60, value=30, step=15, key=f"dur_{day_idx}")
+                    max_appts = st.number_input(f"{day_name} Max Appts", min_value=1, max_value=50, value=10, key=f"max_{day_idx}")
+                    is_active = st.checkbox(f"Active on {day_name}", value=day_idx < 5, key=f"active_{day_idx}")
+                
+                if st.button(f"Save {day_name} Schedule", key=f"save_{day_idx}"):
+                    try:
+                        c = conn.cursor()
+                        # Remove existing schedule for this day
+                        c.execute("DELETE FROM appointment_schedule WHERE day_of_week = ?", (day_idx,))
+                        # Insert new schedule
+                        c.execute('''
+                            INSERT INTO appointment_schedule 
+                            (day_of_week, start_time, end_time, appointment_duration, max_appointments, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ''', (day_idx, start_time, end_time, duration, max_appts, is_active))
+                        conn.commit()
+                        st.success(f"{day_name} schedule saved!")
+                    except Exception as e:
+                        st.error(f"Error saving schedule: {str(e)}")
+        
+        # OphtalCAM Device Connect button
+        st.markdown("#### OphtalCAM Device Integration")
+        if st.button("Connect OphtalCAM Device", use_container_width=True, key="connect_ophtalcam"):
+            st.info("OphtalCAM device connection would be implemented here")
+            # This would integrate with actual OphtalCAM hardware
+    
+    with tab3:
+        st.markdown("#### Patient Groups Management")
+        
+        # Create new group
+        col_group1, col_group2 = st.columns(2)
+        with col_group1:
+            new_group_name = st.text_input("New Group Name", placeholder="e.g., Myopia Control", key="new_group_name")
+        with col_group2:
+            new_group_desc = st.text_input("Group Description", placeholder="e.g., Patients undergoing myopia control treatment", key="new_group_desc")
+        
+        if st.button("Create New Group", use_container_width=True, key="create_group"):
+            if new_group_name:
+                try:
+                    c = conn.cursor()
+                    c.execute("INSERT INTO patient_groups (group_name, description) VALUES (?, ?)", 
+                             (new_group_name, new_group_desc))
+                    conn.commit()
+                    st.success(f"Group '{new_group_name}' created successfully!")
+                except sqlite3.IntegrityError:
+                    st.error("Group name already exists.")
+                except Exception as e:
+                    st.error(f"Error creating group: {str(e)}")
+            else:
+                st.error("Please enter a group name.")
+        
+        # Display existing groups
+        st.markdown("#### Existing Patient Groups")
+        try:
+            groups_df = pd.read_sql("SELECT * FROM patient_groups ORDER BY group_name", conn)
+            if not groups_df.empty:
+                for _, group in groups_df.iterrows():
+                    col_grp1, col_grp2, col_grp3 = st.columns([3, 2, 1])
+                    with col_grp1:
+                        st.write(f"**{group['group_name']}**")
+                    with col_grp2:
+                        st.write(group['description'])
+                    with col_grp3:
+                        if st.button("Delete", key=f"del_grp_{group['id']}"):
+                            c = conn.cursor()
+                            c.execute("DELETE FROM patient_groups WHERE id = ?", (group['id'],))
+                            conn.commit()
+                            st.success(f"Group '{group['group_name']}' deleted.")
+                            st.rerun()
+            else:
+                st.info("No patient groups found.")
+        except Exception as e:
+            st.error(f"Error loading groups: {str(e)}")
 
 # -----------------------
 # MODERN TOP NAVIGATION
 # -----------------------
 def main_navigation():
-    # Top navigation bar
-    col_nav1, col_nav2, col_nav3, col_nav4, col_nav5, col_nav6, col_nav7 = st.columns(7)
+    # Top navigation bar - Examination Protocol maknut
+    col_nav1, col_nav2, col_nav3, col_nav4, col_nav5, col_nav6 = st.columns(6)
     
     nav_options = {
         "Dashboard": col_nav1,
         "Patient Registration": col_nav2, 
         "Patient Search": col_nav3,
-        "Examination Protocol": col_nav4,
-        "Contact Lenses": col_nav5,
-        "Clinical Analytics": col_nav6,
-        "System Settings": col_nav7
+        "Contact Lenses": col_nav4,
+        "Clinical Analytics": col_nav5,
+        "System Settings": col_nav6
     }
     
     for option, col in nav_options.items():
@@ -2104,7 +2232,7 @@ def login_page():
     
     with col_logo:
         st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=200)
-        st.markdown("<div style='text-align:center;'><h3>OPHTALCAM</h3><p>Clinical Management System</p></div>", unsafe_allow_html=True)
+        # Uklonjen dupli naslov "OPHTALCAM Clinical Management System"
     
     with col_form:
         st.markdown("### Clinical Login")
@@ -2155,10 +2283,10 @@ def main():
     if not st.session_state.logged_in:
         login_page()
     else:
-        # Professional header
+        # Professional header s PhantasMED logom
         col_header1, col_header2, col_header3 = st.columns([2, 1, 1])
         with col_header1:
-            st.image("https://i.postimg.cc/PrRFzQLv/Logo-Transparency-01.png", width=150)
+            st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=150)
         with col_header2:
             st.write(f"**Clinician:** {st.session_state.username}")
             st.write(f"**Role:** {st.session_state.role}")
