@@ -8,6 +8,7 @@ import os
 import json
 import hashlib
 import math
+import base64
 
 st.set_page_config(page_title="OphtalCAM EMR", page_icon="👁️", layout="wide", initial_sidebar_state="collapsed")
 
@@ -26,8 +27,7 @@ def init_db():
             'refraction_exams': [
                 'subjective_add_od', 'subjective_add_os', 'subjective_deg_od', 'subjective_deg_os',
                 'habitual_add_od', 'habitual_add_os', 'habitual_deg_od', 'habitual_deg_os',
-                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os',
-                'subjective_distance', 'subjective_deg_distance', 'final_deg_distance'
+                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os'
             ],
             'posterior_segment_exams': [
                 'ophthalmoscopy_od', 'ophthalmoscopy_os'
@@ -43,7 +43,7 @@ def init_db():
                 'chief_complaint'
             ],
             'contact_lens_prescriptions': [
-                'lens_design'
+                'lens_material'
             ]
         }
         
@@ -381,6 +381,16 @@ def init_db():
         )
     ''')
 
+    # Clinic settings table for logo
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS clinic_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            clinic_name TEXT,
+            clinic_logo BLOB,
+            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Default admin + groups
     try:
         admin_hash = hashlib.sha256("admin123".encode()).hexdigest()
@@ -440,9 +450,7 @@ def check_license_expiry():
             elif (expiry_date - date.today()).days <= 30:
                 st.warning(f"⚠️ License expires on {expiry_date}. Renew soon.")
     except Exception as e:
-        # Ako je greška zbog nedostatka stupca, ignoriraj je jer je to samo za administrativne korisnike
-        if "no such column" not in str(e).lower():
-            st.error(f"License check error: {str(e)}")
+        st.error(f"License check error: {str(e)}")
 
 def get_patient_stats():
     try:
@@ -508,21 +516,30 @@ def draw_tabo_scheme(od_axis, os_axis):
     
     return f"""
     <div style="text-align: center; margin: 20px 0;">
-        <div style="display: inline-block; position: relative; width: 200px; height: 200px; border: 2px solid #333; border-radius: 50%;">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px;">
+        <!-- OD Circle -->
+        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 10px;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px;">
                 <!-- OD Axis -->
-                <div style="position: absolute; top: 50%; left: 10%; transform: translate(-50%, -50%) rotate({od_axis}deg); 
-                            width: 60px; height: 2px; background: #ff4444; transform-origin: right center;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({od_axis}deg); 
+                            width: 70px; height: 2px; background: #ff4444; transform-origin: center center;">
                     <div style="position: absolute; right: -5px; top: -5px; width: 10px; height: 10px; background: #ff4444; border-radius: 50%;"></div>
-                    <div style="position: absolute; right: -25px; top: -15px; font-size: 12px; color: #ff4444;">OD: {od_axis}°</div>
-                </div>
-                <!-- OS Axis -->
-                <div style="position: absolute; top: 50%; left: 90%; transform: translate(-50%, -50%) rotate({os_axis}deg); 
-                            width: 60px; height: 2px; background: #4444ff; transform-origin: left center;">
-                    <div style="position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; background: #4444ff; border-radius: 50%;"></div>
-                    <div style="position: absolute; left: -25px; top: -15px; font-size: 12px; color: #4444ff;">OS: {os_axis}°</div>
+                    <div style="position: absolute; right: -30px; top: -15px; font-size: 12px; color: #ff4444;">OD: {od_axis}°</div>
                 </div>
             </div>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #ff4444;">OD</div>
+        </div>
+        
+        <!-- OS Circle -->
+        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 10px;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px;">
+                <!-- OS Axis -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({os_axis}deg); 
+                            width: 70px; height: 2px; background: #4444ff; transform-origin: center center;">
+                    <div style="position: absolute; right: -5px; top: -5px; width: 10px; height: 10px; background: #4444ff; border-radius: 50%;"></div>
+                    <div style="position: absolute; right: -30px; top: -15px; font-size: 12px; color: #4444ff;">OS: {os_axis}°</div>
+                </div>
+            </div>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #4444ff;">OS</div>
         </div>
     </div>
     """
@@ -572,11 +589,115 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # -----------------------
+# CLINIC SETTINGS FUNCTIONS
+# -----------------------
+def save_clinic_logo(uploaded_file):
+    """Save clinic logo to database"""
+    try:
+        if uploaded_file is not None:
+            # Convert to bytes
+            bytes_data = uploaded_file.getvalue()
+            
+            c = conn.cursor()
+            # Check if logo already exists
+            c.execute("SELECT COUNT(*) FROM clinic_settings")
+            count = c.fetchone()[0]
+            
+            if count > 0:
+                # Update existing
+                c.execute("UPDATE clinic_settings SET clinic_logo = ?", (bytes_data,))
+            else:
+                # Insert new
+                c.execute("INSERT INTO clinic_settings (clinic_logo) VALUES (?)", (bytes_data,))
+            
+            conn.commit()
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Error saving logo: {str(e)}")
+        return False
+
+def get_clinic_logo():
+    """Get clinic logo from database"""
+    try:
+        c = conn.cursor()
+        c.execute("SELECT clinic_logo FROM clinic_settings LIMIT 1")
+        result = c.fetchone()
+        
+        if result and result[0]:
+            # Convert bytes to base64 for HTML display
+            logo_base64 = base64.b64encode(result[0]).decode()
+            return f"data:image/png;base64,{logo_base64}"
+        return None
+    except Exception as e:
+        print(f"Error getting logo: {str(e)}")
+        return None
+
+# -----------------------
 # PLACEHOLDER FUNCTIONS FOR MISSING MODULES
 # -----------------------
 def schedule_appointment():
     st.markdown("<h2 class='main-header'>Schedule Appointment</h2>", unsafe_allow_html=True)
-    st.info("Appointment scheduling module - Under development")
+    
+    # Improved appointment scheduling
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("New Appointment")
+        with st.form("appointment_form"):
+            # Patient selection
+            patients_df = pd.read_sql("SELECT patient_id, first_name, last_name FROM patients ORDER BY last_name, first_name", conn)
+            if not patients_df.empty:
+                patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients_df.iterrows()]
+                selected_patient = st.selectbox("Select Patient", patient_options)
+                
+                appointment_date = st.date_input("Appointment Date", value=date.today())
+                appointment_time = st.time_input("Appointment Time", value=datetime.now().time())
+                
+                appointment_type = st.selectbox("Appointment Type", 
+                                              ["Routine Exam", "Contact Lens Fitting", "Follow-up", "Emergency", "Surgery Consultation"])
+                
+                duration = st.number_input("Duration (minutes)", min_value=15, max_value=120, value=30, step=15)
+                notes = st.text_area("Notes", placeholder="Additional notes for the appointment")
+                
+                if st.form_submit_button("Schedule Appointment", use_container_width=True):
+                    try:
+                        # Extract patient ID from selection
+                        patient_id = selected_patient.split(" - ")[0]
+                        
+                        # Get patient database ID
+                        patient_db_id = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]['id']
+                        
+                        # Combine date and time
+                        appointment_datetime = datetime.combine(appointment_date, appointment_time)
+                        
+                        c = conn.cursor()
+                        c.execute('''
+                            INSERT INTO appointments (patient_id, appointment_date, duration_minutes, appointment_type, notes)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (patient_db_id, appointment_datetime, duration, appointment_type, notes))
+                        conn.commit()
+                        st.success("Appointment scheduled successfully!")
+                    except Exception as e:
+                        st.error(f"Error scheduling appointment: {str(e)}")
+            else:
+                st.info("No patients found. Please register patients first.")
+    
+    with col2:
+        st.subheader("Upcoming Appointments")
+        upcoming = get_upcoming_appointments(10)
+        if not upcoming.empty:
+            for _, apt in upcoming.iterrows():
+                apt_time = pd.to_datetime(apt['appointment_date']).strftime('%d.%m.%Y %H:%M')
+                with st.container():
+                    st.write(f"**{apt_time}** - {apt['first_name']} {apt['last_name']}")
+                    st.caption(f"{apt['appointment_type']} | {apt['status']}")
+                    if st.button("View Details", key=f"view_apt_{apt['id']}"):
+                        st.session_state.selected_patient = apt['patient_id']
+                        st.session_state.menu = "Patient History"
+                        st.rerun()
+        else:
+            st.info("No upcoming appointments")
 
 def view_patient_history():
     st.markdown("<h2 class='main-header'>Patient History</h2>", unsafe_allow_html=True)
@@ -611,7 +732,81 @@ def view_patient_history():
 
 def clinical_analytics():
     st.markdown("<h2 class='main-header'>Clinical Analytics</h2>", unsafe_allow_html=True)
-    st.info("Clinical analytics module - Under development")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Patient Statistics")
+        try:
+            # Age distribution
+            age_data = pd.read_sql('''
+                SELECT 
+                    CASE 
+                        WHEN date('now') - date_of_birth < 18 THEN 'Under 18'
+                        WHEN date('now') - date_of_birth BETWEEN 18 AND 35 THEN '18-35'
+                        WHEN date('now') - date_of_birth BETWEEN 36 AND 55 THEN '36-55'
+                        WHEN date('now') - date_of_birth BETWEEN 56 AND 70 THEN '56-70'
+                        ELSE 'Over 70'
+                    END as age_group,
+                    COUNT(*) as count
+                FROM patients 
+                GROUP BY age_group
+                ORDER BY count DESC
+            ''', conn)
+            
+            if not age_data.empty:
+                st.write("**Age Distribution**")
+                for _, row in age_data.iterrows():
+                    st.write(f"{row['age_group']}: {row['count']} patients")
+            
+            # Gender distribution
+            gender_data = pd.read_sql('''
+                SELECT gender, COUNT(*) as count 
+                FROM patients 
+                GROUP BY gender
+            ''', conn)
+            
+            if not gender_data.empty:
+                st.write("**Gender Distribution**")
+                for _, row in gender_data.iterrows():
+                    st.write(f"{row['gender']}: {row['count']} patients")
+                    
+        except Exception as e:
+            st.error(f"Error loading statistics: {str(e)}")
+    
+    with col2:
+        st.subheader("Examination Analytics")
+        try:
+            # Recent exams
+            recent_exams = pd.read_sql('''
+                SELECT 
+                    strftime('%Y-%m', exam_date) as month,
+                    COUNT(*) as exam_count
+                FROM refraction_exams 
+                GROUP BY month 
+                ORDER BY month DESC 
+                LIMIT 6
+            ''', conn)
+            
+            if not recent_exams.empty:
+                st.write("**Exams per Month**")
+                for _, row in recent_exams.iterrows():
+                    st.write(f"{row['month']}: {row['exam_count']} exams")
+            
+            # Contact lens types
+            cl_types = pd.read_sql('''
+                SELECT lens_type, COUNT(*) as count 
+                FROM contact_lens_prescriptions 
+                GROUP BY lens_type
+            ''', conn)
+            
+            if not cl_types.empty:
+                st.write("**Contact Lens Types**")
+                for _, row in cl_types.iterrows():
+                    st.write(f"{row['lens_type']}: {row['count']}")
+                    
+        except Exception as e:
+            st.error(f"Error loading exam analytics: {str(e)}")
 
 # -----------------------
 # PROFESSIONAL DASHBOARD - COMPLETELY FUNCTIONAL
@@ -619,7 +814,7 @@ def clinical_analytics():
 def show_dashboard():
     st.markdown("<h1 class='main-header'>OphtalCAM Clinical Dashboard</h1>", unsafe_allow_html=True)
     
-    # Check license - sada s poboljšanom greškom
+    # Check license
     check_license_expiry()
     
     # Professional quick actions
@@ -797,29 +992,7 @@ def medical_history():
             family_history = st.text_area("Family medical history", height=80)
             ocular_history = st.text_area("Ocular history", height=80)
             previous_surgeries = st.text_area("Previous surgeries", height=60)
-            
-            # Last eye exam - samo mjesec i godina
-            st.markdown("#### Last Eye Exam")
-            col_eye1, col_eye2 = st.columns(2)
-            with col_eye1:
-                last_eye_exam_month = st.selectbox("Month", 
-                    ["", "January", "February", "March", "April", "May", "June", 
-                     "July", "August", "September", "October", "November", "December"], key="last_eye_month")
-            with col_eye2:
-                current_year = datetime.now().year
-                years = [""] + list(range(current_year, current_year - 10, -1))
-                last_eye_exam_year = st.selectbox("Year", years, key="last_eye_year")
-            
-            # Kreiraj datum od mjeseca i godine
-            last_eye_exam = None
-            if last_eye_exam_month and last_eye_exam_year:
-                try:
-                    # Postavi na prvi dan mjeseca
-                    last_eye_exam = date(last_eye_exam_year, 
-                                       ["", "January", "February", "March", "April", "May", "June", 
-                                        "July", "August", "September", "October", "November", "December"].index(last_eye_exam_month), 1)
-                except:
-                    pass
+            last_eye_exam = st.date_input("Last eye exam", value=None)
         
         st.markdown("#### Social / Lifestyle")
         col_s1, col_s2 = st.columns(2)
@@ -913,8 +1086,54 @@ def refraction_examination():
 
     # 1) Vision Examination WITH ADD/DEG - COMPACT HORIZONTAL LAYOUT
     st.markdown("<div class='exam-section'><h4>Vision Examination</h4></div>", unsafe_allow_html=True)
+    
+    # UNCORRECTED VISION - PRIJE HABITUALNE KOREKCIJE
+    st.markdown("#### Uncorrected Vision")
+    with st.form("uncorrected_form"):
+        col_uc_headers = st.columns(4)
+        with col_uc_headers[0]:
+            st.write("**Eye**")
+        with col_uc_headers[1]:
+            st.write("**VA**")
+        with col_uc_headers[2]:
+            st.write("**Mod**")
+        with col_uc_headers[3]:
+            st.write("**Binocular**")
+        
+        col_uc_od = st.columns(4)
+        with col_uc_od[0]:
+            st.write("**OD**")
+        with col_uc_od[1]:
+            uc_od_va = st.text_input("Uncorrected VA OD", placeholder="1.0", key="uc_od_va", label_visibility="collapsed")
+        with col_uc_od[2]:
+            uc_od_mod = st.text_input("Modifier OD", placeholder="-2", key="uc_od_mod", label_visibility="collapsed")
+        with col_uc_od[3]:
+            uc_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0", key="uc_bin_va", label_visibility="collapsed")
+        
+        col_uc_os = st.columns(4)
+        with col_uc_os[0]:
+            st.write("**OS**")
+        with col_uc_os[1]:
+            uc_os_va = st.text_input("Uncorrected VA OS", placeholder="1.0", key="uc_os_va", label_visibility="collapsed")
+        with col_uc_os[2]:
+            uc_os_mod = st.text_input("Modifier OS", placeholder="-2", key="uc_os_mod", label_visibility="collapsed")
+        with col_uc_os[3]:
+            # Empty space for alignment
+            st.write("")
+        
+        submit_uncorrected = st.form_submit_button("Save Uncorrected Vision", use_container_width=True)
+        
+        if submit_uncorrected:
+            st.session_state.refraction.update({
+                'uncorrected_od_va': uc_od_va, 'uncorrected_od_modifier': uc_od_mod,
+                'uncorrected_os_va': uc_os_va, 'uncorrected_os_modifier': uc_os_mod,
+                'uncorrected_binocular_va': uc_bin_va,
+            })
+            st.success("Uncorrected vision data saved!")
+
+    # HABITUAL CORRECTION - NAKON UNCORRECTED
+    st.markdown("#### Habitual Correction")
     with st.form("vision_form"):
-        st.markdown("**Habitual Correction**")
         habitual_type = st.selectbox("Type of Correction", 
                                    ["None", "Spectacles", "Soft Contact Lenses", "RGP", "Scleral", "Ortho-K", "Other"])
         
@@ -988,38 +1207,6 @@ def refraction_examination():
         with col_bin[1]:
             h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
         
-        st.markdown("**Uncorrected Vision**")
-        col_uc_headers = st.columns(4)
-        with col_uc_headers[0]:
-            st.write("**Eye**")
-        with col_uc_headers[1]:
-            st.write("**VA**")
-        with col_uc_headers[2]:
-            st.write("**Mod**")
-        with col_uc_headers[3]:
-            st.write("**Binocular**")
-        
-        col_uc_od = st.columns(4)
-        with col_uc_od[0]:
-            st.write("**OD**")
-        with col_uc_od[1]:
-            uc_od_va = st.text_input("Uncorrected VA OD", placeholder="1.0", key="uc_od_va", label_visibility="collapsed")
-        with col_uc_od[2]:
-            uc_od_mod = st.text_input("Modifier OD", placeholder="-2", key="uc_od_mod", label_visibility="collapsed")
-        with col_uc_od[3]:
-            uc_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0", key="uc_bin_va", label_visibility="collapsed")
-        
-        col_uc_os = st.columns(4)
-        with col_uc_os[0]:
-            st.write("**OS**")
-        with col_uc_os[1]:
-            uc_os_va = st.text_input("Uncorrected VA OS", placeholder="1.0", key="uc_os_va", label_visibility="collapsed")
-        with col_uc_os[2]:
-            uc_os_mod = st.text_input("Modifier OS", placeholder="-2", key="uc_os_mod", label_visibility="collapsed")
-        with col_uc_os[3]:
-            # Empty space for alignment
-            st.write("")
-        
         vision_notes = st.text_area("Vision Notes", height=60, key="vision_notes")
         
         submit_vision = st.form_submit_button("Save Vision Data", use_container_width=True)
@@ -1032,9 +1219,6 @@ def refraction_examination():
                 'habitual_binocular_va': h_bin_va, 'habitual_pd': h_pd,
                 'habitual_add_od': h_od_add, 'habitual_add_os': h_os_add,
                 'habitual_deg_od': h_od_deg, 'habitual_deg_os': h_os_deg,
-                'uncorrected_od_va': uc_od_va, 'uncorrected_od_modifier': uc_od_mod,
-                'uncorrected_os_va': uc_os_va, 'uncorrected_os_modifier': uc_os_mod,
-                'uncorrected_binocular_va': uc_bin_va,
                 'vision_notes': vision_notes
             })
             st.success("Vision data saved!")
@@ -1107,14 +1291,14 @@ def refraction_examination():
             })
             st.success("Objective data saved!")
 
-    # 3) Subjective Refraction WITH ADD/DEG - BEZ DISTANCE
+    # 3) Subjective Refraction WITH ADD/DEG
     st.markdown("<div class='exam-section'><h4>Subjective Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("subjective_form"):
         subj_method = st.selectbox("Subjective Method", ["Fogging", "With Cycloplegic", "Other"], key="subj_method")
         
-        # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju - VA je predzadnja prije Mod
+        # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju
         st.markdown("**Subjective Refraction Parameters**")
-        col_subj_headers = st.columns(8)
+        col_subj_headers = st.columns(9)
         with col_subj_headers[0]:
             st.write("**Eye**")
         with col_subj_headers[1]:
@@ -1124,15 +1308,17 @@ def refraction_examination():
         with col_subj_headers[3]:
             st.write("**Axis**")
         with col_subj_headers[4]:
-            st.write("**Add**")
-        with col_subj_headers[5]:
-            st.write("**Deg**")
-        with col_subj_headers[6]:
             st.write("**VA**")
+        with col_subj_headers[5]:
+            st.write("**Add**")
+        with col_subj_headers[6]:
+            st.write("**Deg**")
         with col_subj_headers[7]:
+            st.write("**Dist**")
+        with col_subj_headers[8]:
             st.write("**Mod**")
         
-        col_subj_od = st.columns(8)
+        col_subj_od = st.columns(9)
         with col_subj_od[0]:
             st.write("**OD**")
         with col_subj_od[1]:
@@ -1142,15 +1328,17 @@ def refraction_examination():
         with col_subj_od[3]:
             subj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_axis", label_visibility="collapsed")
         with col_subj_od[4]:
-            subj_od_add = st.text_input("ADD OD", placeholder="+1.50", key="subj_od_add", label_visibility="collapsed")
-        with col_subj_od[5]:
-            subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
-        with col_subj_od[6]:
             subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
+        with col_subj_od[5]:
+            subj_od_add = st.text_input("ADD OD", placeholder="+1.50", key="subj_od_add", label_visibility="collapsed")
+        with col_subj_od[6]:
+            subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
         with col_subj_od[7]:
+            subj_od_dist = st.text_input("Dist OD", placeholder="6m", key="subj_od_dist", label_visibility="collapsed")
+        with col_subj_od[8]:
             subj_od_mod = st.text_input("Mod OD", placeholder="-2", key="subj_od_mod", label_visibility="collapsed")
             
-        col_subj_os = st.columns(8)
+        col_subj_os = st.columns(9)
         with col_subj_os[0]:
             st.write("**OS**")
         with col_subj_os[1]:
@@ -1160,16 +1348,22 @@ def refraction_examination():
         with col_subj_os[3]:
             subj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_axis", label_visibility="collapsed")
         with col_subj_os[4]:
-            subj_os_add = st.text_input("ADD OS", placeholder="+1.50", key="subj_os_add", label_visibility="collapsed")
-        with col_subj_os[5]:
-            subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
-        with col_subj_os[6]:
             subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
+        with col_subj_os[5]:
+            subj_os_add = st.text_input("ADD OS", placeholder="+1.50", key="subj_os_add", label_visibility="collapsed")
+        with col_subj_os[6]:
+            subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
         with col_subj_os[7]:
+            subj_os_dist = st.text_input("Dist OS", placeholder="6m", key="subj_os_dist", label_visibility="collapsed")
+        with col_subj_os[8]:
             subj_os_mod = st.text_input("Mod OS", placeholder="-2", key="subj_os_mod", label_visibility="collapsed")
         
-        # DEG Distance (umjesto Distance)
-        subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
+        # Distance s DEG Distance
+        col_distance = st.columns(2)
+        with col_distance[0]:
+            subjective_distance = st.text_input("Distance", placeholder="e.g., 6m", key="subj_distance")
+        with col_distance[1]:
+            subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
         
         subjective_notes = st.text_area("Subjective Notes", height=60, key="subj_notes")
         
@@ -1182,17 +1376,18 @@ def refraction_examination():
                 'subjective_od_va': subj_od_va, 'subjective_add_od': subj_od_add, 'subjective_deg_od': subj_od_deg,
                 'subjective_os_sphere': subj_os_sph, 'subjective_os_cylinder': subj_os_cyl, 'subjective_os_axis': subj_os_axis,
                 'subjective_os_va': subj_os_va, 'subjective_add_os': subj_os_add, 'subjective_deg_os': subj_os_deg,
+                'subjective_distance': subjective_distance,
                 'subjective_deg_distance': subjective_deg_distance,
                 'subjective_notes': subjective_notes
             })
             st.success("Subjective data saved!")
 
-    # 4) Final Prescription WITH ADD/DEG - BEZ DISTANCE
+    # 4) Final Prescription WITH ADD/DEG
     st.markdown("<div class='exam-section'><h4>Final Prescription</h4></div>", unsafe_allow_html=True)
     with st.form("final_form"):
-        # COMPACT HORIZONTAL LAYOUT za finalnu korekciju - VA je predzadnja prije Mod
+        # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
         st.markdown("**Final Prescription Parameters**")
-        col_final_headers = st.columns(8)
+        col_final_headers = st.columns(9)
         with col_final_headers[0]:
             st.write("**Eye**")
         with col_final_headers[1]:
@@ -1202,15 +1397,17 @@ def refraction_examination():
         with col_final_headers[3]:
             st.write("**Axis**")
         with col_final_headers[4]:
-            st.write("**Add**")
-        with col_final_headers[5]:
-            st.write("**Deg**")
-        with col_final_headers[6]:
             st.write("**VA**")
+        with col_final_headers[5]:
+            st.write("**Add**")
+        with col_final_headers[6]:
+            st.write("**Deg**")
         with col_final_headers[7]:
+            st.write("**Dist**")
+        with col_final_headers[8]:
             st.write("**Mod**")
         
-        col_final_od = st.columns(8)
+        col_final_od = st.columns(9)
         with col_final_od[0]:
             st.write("**OD**")
         with col_final_od[1]:
@@ -1220,15 +1417,17 @@ def refraction_examination():
         with col_final_od[3]:
             final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis", label_visibility="collapsed")
         with col_final_od[4]:
-            final_add_od = st.text_input("Final ADD OD", placeholder="+1.50", key="final_add_od", label_visibility="collapsed")
-        with col_final_od[5]:
-            final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
-        with col_final_od[6]:
             final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
+        with col_final_od[5]:
+            final_add_od = st.text_input("Final ADD OD", placeholder="+1.50", key="final_add_od", label_visibility="collapsed")
+        with col_final_od[6]:
+            final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
         with col_final_od[7]:
+            final_od_dist = st.text_input("Dist OD", placeholder="6m", key="final_od_dist", label_visibility="collapsed")
+        with col_final_od[8]:
             final_od_mod = st.text_input("Mod OD", placeholder="-2", key="final_od_mod", label_visibility="collapsed")
             
-        col_final_os = st.columns(8)
+        col_final_os = st.columns(9)
         with col_final_os[0]:
             st.write("**OS**")
         with col_final_os[1]:
@@ -1238,12 +1437,14 @@ def refraction_examination():
         with col_final_os[3]:
             final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis", label_visibility="collapsed")
         with col_final_os[4]:
-            final_add_os = st.text_input("Final ADD OS", placeholder="+1.50", key="final_add_os", label_visibility="collapsed")
-        with col_final_os[5]:
-            final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
-        with col_final_os[6]:
             final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
+        with col_final_os[5]:
+            final_add_os = st.text_input("Final ADD OS", placeholder="+1.50", key="final_add_os", label_visibility="collapsed")
+        with col_final_os[6]:
+            final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
         with col_final_os[7]:
+            final_os_dist = st.text_input("Dist OS", placeholder="6m", key="final_os_dist", label_visibility="collapsed")
+        with col_final_os[8]:
             final_os_mod = st.text_input("Mod OS", placeholder="-2", key="final_os_mod", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
@@ -1274,12 +1475,12 @@ def refraction_examination():
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
                         subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_add_od, subjective_deg_od,
-                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_deg_distance, subjective_notes,
+                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
                         binocular_balance, stereopsis,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_add_od, final_deg_od,
                         final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis, final_add_os, final_deg_os,
                         final_prescribed_binocular_va, final_deg_distance, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, st.session_state.refraction.get('habitual_type'),
                     st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
@@ -1300,7 +1501,7 @@ def refraction_examination():
                     st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
                     st.session_state.refraction.get('subjective_os_sphere'), st.session_state.refraction.get('subjective_os_cylinder'), st.session_state.refraction.get('subjective_os_axis'), 
                     st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
-                    st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
+                    st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
                     binocular_balance, stereopsis,
                     final_od_sph, final_od_cyl, final_od_axis, final_add_od, final_deg_od,
                     final_os_sph, final_os_cyl, final_os_axis, final_add_os, final_deg_os,
@@ -1506,7 +1707,6 @@ def posterior_segment_examination():
 
     with st.form("posterior_form"):
         st.markdown("#### Fundus Examination")
-        # Maknuta oftalmoskopija iz fundus exam type
         fundus_type = st.selectbox("Fundus Exam Type", 
                                  ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
         
@@ -1835,17 +2035,41 @@ def generate_patient_report():
         
         if st.button("Generate Comprehensive Patient Report (HTML)", use_container_width=True, key="generate_patient_html"):
             
-            # Collect data for report
+            # Collect data for report - FIXED: Use .iloc[0] to access the first row
             ref = refraction_data.iloc[0] if not refraction_data.empty else {}
             ant = anterior_data.iloc[0] if not anterior_data.empty else {}
             post = posterior_data.iloc[0] if not posterior_data.empty else {}
             cl = cl_data.iloc[0] if not cl_data.empty else {}
             med = medical_data.iloc[0] if not medical_data.empty else {}
 
-            # Tabo scheme za patient report
+            # Get clinic logo
+            clinic_logo = get_clinic_logo()
+            
+            # Tabo scheme za patient report - FIXED: Two separate circles
             tabo_html = draw_tabo_scheme(
-                ref.get('final_prescribed_od_axis', ''),
-                ref.get('final_prescribed_os_axis', '')
+                ref.get('final_prescribed_od_axis', 0) if not refraction_data.empty else 0,
+                ref.get('final_prescribed_os_axis', 0) if not refraction_data.empty else 0
+            )
+            
+            # Format prescription data properly
+            def format_prescription(sphere, cylinder, axis):
+                if pd.isna(sphere) or sphere == 0:
+                    return "Plano"
+                sphere_str = f"{sphere:+.2f}" if sphere != 0 else "Plano"
+                cylinder_str = f"{cylinder:+.2f}" if cylinder and cylinder != 0 else ""
+                axis_str = f"x{axis}" if axis and axis != 0 and cylinder_str else ""
+                return f"{sphere_str} {cylinder_str} {axis_str}".strip()
+            
+            od_prescription = format_prescription(
+                ref.get('final_prescribed_od_sphere', 0) if not refraction_data.empty else 0,
+                ref.get('final_prescribed_od_cylinder', 0) if not refraction_data.empty else 0,
+                ref.get('final_prescribed_od_axis', 0) if not refraction_data.empty else 0
+            )
+            
+            os_prescription = format_prescription(
+                ref.get('final_prescribed_os_sphere', 0) if not refraction_data.empty else 0,
+                ref.get('final_prescribed_os_cylinder', 0) if not refraction_data.empty else 0,
+                ref.get('final_prescribed_os_axis', 0) if not refraction_data.empty else 0
             )
             
             # Generiraj HTML za patient report
@@ -1924,6 +2148,14 @@ def generate_patient_report():
             border-top: 2px solid #333; 
             padding-top: 20px;
         }}
+        .footer {{
+            margin-top: 50px;
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }}
         @media print {{
             body {{ margin: 0.5in; }}
             .no-print {{ display: none; }}
@@ -1932,7 +2164,7 @@ def generate_patient_report():
 </head>
 <body>
     <div class="header">
-        <h1>OPHTHALCAM EYE CLINIC</h1>
+        {"<img src='" + clinic_logo + "' style='max-width: 200px; margin-bottom: 15px;' alt='Clinic Logo'>" if clinic_logo else "<h1>OPHTHALCAM EYE CLINIC</h1>"}
         <h2>PATIENT CLINICAL REPORT</h2>
         <p><strong>Report Date:</strong> {date.today().strftime('%d.%m.%Y')} | <strong>Clinician:</strong> {st.session_state.username}</p>
     </div>
@@ -1954,10 +2186,10 @@ def generate_patient_report():
 
     <div class="section">
         <div class="section-title">MEDICAL HISTORY & CHIEF COMPLAINT</div>
-        <p><strong>Chief Complaint:</strong> {med.get('chief_complaint', 'Not recorded')}</p>
-        <p><strong>General Health:</strong> {med.get('general_health', 'Not recorded')}</p>
-        <p><strong>Current Medications:</strong> {med.get('current_medications', 'None')}</p>
-        <p><strong>Allergies:</strong> {med.get('allergies', 'None')}</p>
+        <p><strong>Chief Complaint:</strong> {med.get('chief_complaint', 'Not recorded') if not medical_data.empty else 'Not recorded'}</p>
+        <p><strong>General Health:</strong> {med.get('general_health', 'Not recorded') if not medical_data.empty else 'Not recorded'}</p>
+        <p><strong>Current Medications:</strong> {med.get('current_medications', 'None') if not medical_data.empty else 'None'}</p>
+        <p><strong>Allergies:</strong> {med.get('allergies', 'None') if not medical_data.empty else 'None'}</p>
     </div>
 
     <div class="section">
@@ -1966,19 +2198,19 @@ def generate_patient_report():
             <div class="prescription-card">
                 <div style="text-align: center; font-weight: bold; margin-bottom: 10px; color: #1e3c72;">RIGHT EYE (OD)</div>
                 <div style="text-align: center; font-size: 16px; margin: 10px 0;">
-                    {ref.get('final_prescribed_od_sphere', '')} {ref.get('final_prescribed_od_cylinder', '')} x {ref.get('final_prescribed_od_axis', '')}
+                    {od_prescription}
                 </div>
-                <div><strong>ADD:</strong> {ref.get('final_add_od', 'N/A')}</div>
-                <div><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A')}</div>
+                <div><strong>ADD:</strong> {ref.get('final_add_od', 'N/A') if not refraction_data.empty else 'N/A'}</div>
+                <div><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A') if not refraction_data.empty else 'N/A'}</div>
             </div>
 
             <div class="prescription-card">
                 <div style="text-align: center; font-weight: bold; margin-bottom: 10px; color: #1e3c72;">LEFT EYE (OS)</div>
                 <div style="text-align: center; font-size: 16px; margin: 10px 0;">
-                    {ref.get('final_prescribed_os_sphere', '')} {ref.get('final_prescribed_os_cylinder', '')} x {ref.get('final_prescribed_os_axis', '')}
+                    {os_prescription}
                 </div>
-                <div><strong>ADD:</strong> {ref.get('final_add_os', 'N/A')}</div>
-                <div><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A')}</div>
+                <div><strong>ADD:</strong> {ref.get('final_add_os', 'N/A') if not refraction_data.empty else 'N/A'}</div>
+                <div><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A') if not refraction_data.empty else 'N/A'}</div>
             </div>
         </div>
 
@@ -1990,15 +2222,15 @@ def generate_patient_report():
 
     <div class="section">
         <div class="section-title">ANTERIOR SEGMENT FINDINGS</div>
-        <p><strong>IOP:</strong> OD {ant.get('tonometry_od', 'Not recorded')} mmHg | OS {ant.get('tonometry_os', 'Not recorded')} mmHg</p>
-        <p><strong>CCT:</strong> OD {ant.get('pachymetry_od', 'Not recorded')} μm | OS {ant.get('pachymetry_os', 'Not recorded')} μm</p>
-        <p><strong>Anterior Chamber:</strong> {ant.get('biomicroscopy_od', 'Not recorded')}</p>
+        <p><strong>IOP:</strong> OD {ant.get('tonometry_od', 'Not recorded') if not anterior_data.empty else 'Not recorded'} mmHg | OS {ant.get('tonometry_os', 'Not recorded') if not anterior_data.empty else 'Not recorded'} mmHg</p>
+        <p><strong>CCT:</strong> OD {ant.get('pachymetry_od', 'Not recorded') if not anterior_data.empty else 'Not recorded'} μm | OS {ant.get('pachymetry_os', 'Not recorded') if not anterior_data.empty else 'Not recorded'} μm</p>
+        <p><strong>Anterior Chamber:</strong> {ant.get('biomicroscopy_od', 'Not recorded') if not anterior_data.empty else 'Not recorded'}</p>
     </div>
 
     <div class="section">
         <div class="section-title">POSTERIOR SEGMENT FINDINGS</div>
-        <p><strong>Fundus Examination:</strong> {post.get('fundus_notes', 'Not recorded')}</p>
-        <p><strong>OCT Findings:</strong> {post.get('oct_notes', 'Not recorded')}</p>
+        <p><strong>Fundus Examination:</strong> {post.get('fundus_notes', 'Not recorded') if not posterior_data.empty else 'Not recorded'}</p>
+        <p><strong>OCT Findings:</strong> {post.get('oct_notes', 'Not recorded') if not posterior_data.empty else 'Not recorded'}</p>
     </div>
 
     {"<div class='section'><div class='section-title'>CONTACT LENS PRESCRIPTION</div><p><strong>Lens Type:</strong> " + cl.get('lens_type', '') + "</p><p><strong>Assessment:</strong> " + cl.get('professional_assessment', 'Not recorded') + "</p></div>" if not cl_data.empty else ""}
@@ -2021,6 +2253,11 @@ def generate_patient_report():
         <p>Licensed Eye Care Professional</p>
         <p>OphtalCAM Eye Clinic</p>
         <p>Date: {date.today().strftime('%d %B %Y')}</p>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 OphtalCAM EMR System. All rights reserved.</p>
+        <img src="https://i.postimg.cc/qq656tks/Phantasmed-logo.png" style="width: 100px; margin-top: 10px;" alt="PhantasMED">
     </div>
 
     <div class="no-print" style="margin-top: 30px; padding: 15px; background: #e8f4fd; border-radius: 5px;">
@@ -2107,10 +2344,34 @@ def generate_prescription_report():
         # Generate Prescription Report
         if st.button("Generate Prescription Report (HTML)", use_container_width=True, key="generate_prescription"):
             
-            # Tabo scheme za prescription
+            # Get clinic logo
+            clinic_logo = get_clinic_logo()
+            
+            # Tabo scheme za prescription - FIXED: Two separate circles
             tabo_html = draw_tabo_scheme(
-                ref.get('final_prescribed_od_axis', ''),
-                ref.get('final_prescribed_os_axis', '')
+                ref.get('final_prescribed_od_axis', 0),
+                ref.get('final_prescribed_os_axis', 0)
+            )
+            
+            # Format prescription data properly
+            def format_prescription(sphere, cylinder, axis):
+                if pd.isna(sphere) or sphere == 0:
+                    return "Plano"
+                sphere_str = f"{sphere:+.2f}" if sphere != 0 else "Plano"
+                cylinder_str = f"{cylinder:+.2f}" if cylinder and cylinder != 0 else ""
+                axis_str = f"x{axis}" if axis and axis != 0 and cylinder_str else ""
+                return f"{sphere_str} {cylinder_str} {axis_str}".strip()
+            
+            od_prescription = format_prescription(
+                ref.get('final_prescribed_od_sphere', 0),
+                ref.get('final_prescribed_od_cylinder', 0),
+                ref.get('final_prescribed_od_axis', 0)
+            )
+            
+            os_prescription = format_prescription(
+                ref.get('final_prescribed_os_sphere', 0),
+                ref.get('final_prescribed_os_cylinder', 0),
+                ref.get('final_prescribed_os_axis', 0)
             )
             
             # Generiraj HTML za optometrijski nalaz
@@ -2185,6 +2446,14 @@ def generate_prescription_report():
             border-top: 2px solid #333; 
             padding-top: 20px;
         }}
+        .footer {{
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }}
         @media print {{
             body {{ margin: 0.5in; }}
             .no-print {{ display: none; }}
@@ -2199,7 +2468,7 @@ def generate_prescription_report():
 </head>
 <body>
     <div class="header">
-        <h1>OPHTHALCAM EYE CLINIC</h1>
+        {"<img src='" + clinic_logo + "' style='max-width: 200px; margin-bottom: 15px;' alt='Clinic Logo'>" if clinic_logo else "<h1>OPHTHALCAM EYE CLINIC</h1>"}
         <h2>OPTOMETRIC PRESCRIPTION</h2>
         <p><strong>Date:</strong> {date.today().strftime('%d.%m.%Y')} | <strong>Valid Until:</strong> {(date.today() + timedelta(days=365)).strftime('%d.%m.%Y')}</p>
     </div>
@@ -2223,7 +2492,7 @@ def generate_prescription_report():
         <div class="prescription-card">
             <div class="prescription-title">RIGHT EYE (OD)</div>
             <div style="text-align: center; font-size: 18px; font-weight: bold; margin: 10px 0;">
-                {ref.get('final_prescribed_od_sphere', '')} {ref.get('final_prescribed_od_cylinder', '')} x {ref.get('final_prescribed_od_axis', '')}
+                {od_prescription}
             </div>
             <div class="parameters">
                 <div class="parameter"><strong>Sphere:</strong> {ref.get('final_prescribed_od_sphere', '')}</div>
@@ -2237,7 +2506,7 @@ def generate_prescription_report():
         <div class="prescription-card">
             <div class="prescription-title">LEFT EYE (OS)</div>
             <div style="text-align: center; font-size: 18px; font-weight: bold; margin: 10px 0;">
-                {ref.get('final_prescribed_os_sphere', '')} {ref.get('final_prescribed_os_cylinder', '')} x {ref.get('final_prescribed_os_axis', '')}
+                {os_prescription}
             </div>
             <div class="parameters">
                 <div class="parameter"><strong>Sphere:</strong> {ref.get('final_prescribed_os_sphere', '')}</div>
@@ -2275,6 +2544,11 @@ def generate_prescription_report():
         <p>Licensed Optometrist</p>
         <p>OphtalCAM Eye Clinic</p>
         <p>Date: {date.today().strftime('%d %B %Y')}</p>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 OphtalCAM EMR System. All rights reserved.</p>
+        <img src="https://i.postimg.cc/qq656tks/Phantasmed-logo.png" style="width: 100px; margin-top: 10px;" alt="PhantasMED">
     </div>
 
     <div class="no-print" style="margin-top: 30px; padding: 15px; background: #e8f4fd; border-radius: 5px;">
@@ -2491,7 +2765,7 @@ def user_management():
         
     st.markdown("<h2 class='main-header'>User Management & License Control</h2>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["User Management", "Appointment Schedule", "Patient Groups"])
+    tab1, tab2, tab3, tab4 = st.tabs(["User Management", "Appointment Schedule", "Patient Groups", "Clinic Settings"])
     
     with tab1:
         st.markdown("#### Add New User")
@@ -2643,6 +2917,35 @@ def user_management():
                 st.info("No patient groups found.")
         except Exception as e:
             st.error(f"Error loading groups: {str(e)}")
+    
+    with tab4:
+        st.markdown("#### Clinic Settings")
+        
+        st.markdown("##### Clinic Logo")
+        uploaded_logo = st.file_uploader("Upload Clinic Logo", type=['png', 'jpg', 'jpeg'], key="clinic_logo")
+        
+        if uploaded_logo:
+            st.image(uploaded_logo, width=200)
+            if st.button("Save Logo", key="save_logo"):
+                if save_clinic_logo(uploaded_logo):
+                    st.success("Clinic logo saved successfully!")
+                else:
+                    st.error("Failed to save logo.")
+        
+        # Show current logo if exists
+        current_logo = get_clinic_logo()
+        if current_logo:
+            st.markdown("##### Current Logo")
+            st.image(current_logo, width=200)
+            if st.button("Remove Logo", key="remove_logo"):
+                try:
+                    c = conn.cursor()
+                    c.execute("UPDATE clinic_settings SET clinic_logo = NULL")
+                    conn.commit()
+                    st.success("Logo removed successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error removing logo: {str(e)}")
 
 # -----------------------
 # MODERN TOP NAVIGATION
@@ -2818,7 +3121,3 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
-
-
-        
-
