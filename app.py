@@ -1968,7 +1968,7 @@ def generate_prescription_report():
 </body>
 </html>
 """
-            def generate_prescription_report():
+def generate_prescription_report():
     """Generate professional optometric prescription report with Tabo scheme"""
 st.markdown("<h2 class='main-header'>Optometric Prescription Report</h2>", unsafe_allow_html=True)
     
@@ -2711,3 +2711,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
