@@ -26,7 +26,8 @@ def init_db():
             'refraction_exams': [
                 'subjective_add_od', 'subjective_add_os', 'subjective_deg_od', 'subjective_deg_os',
                 'habitual_add_od', 'habitual_add_os', 'habitual_deg_od', 'habitual_deg_os',
-                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os'
+                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os',
+                'subjective_distance', 'subjective_deg_distance', 'final_deg_distance'
             ],
             'posterior_segment_exams': [
                 'ophthalmoscopy_od', 'ophthalmoscopy_os'
@@ -40,6 +41,9 @@ def init_db():
             ],
             'medical_history': [
                 'chief_complaint'
+            ],
+            'contact_lens_prescriptions': [
+                'lens_design'
             ]
         }
         
@@ -436,7 +440,9 @@ def check_license_expiry():
             elif (expiry_date - date.today()).days <= 30:
                 st.warning(f"⚠️ License expires on {expiry_date}. Renew soon.")
     except Exception as e:
-        st.error(f"License check error: {str(e)}")
+        # Ako je greška zbog nedostatka stupca, ignoriraj je jer je to samo za administrativne korisnike
+        if "no such column" not in str(e).lower():
+            st.error(f"License check error: {str(e)}")
 
 def get_patient_stats():
     try:
@@ -613,7 +619,7 @@ def clinical_analytics():
 def show_dashboard():
     st.markdown("<h1 class='main-header'>OphtalCAM Clinical Dashboard</h1>", unsafe_allow_html=True)
     
-    # Check license
+    # Check license - sada s poboljšanom greškom
     check_license_expiry()
     
     # Professional quick actions
@@ -791,7 +797,29 @@ def medical_history():
             family_history = st.text_area("Family medical history", height=80)
             ocular_history = st.text_area("Ocular history", height=80)
             previous_surgeries = st.text_area("Previous surgeries", height=60)
-            last_eye_exam = st.date_input("Last eye exam", value=None)
+            
+            # Last eye exam - samo mjesec i godina
+            st.markdown("#### Last Eye Exam")
+            col_eye1, col_eye2 = st.columns(2)
+            with col_eye1:
+                last_eye_exam_month = st.selectbox("Month", 
+                    ["", "January", "February", "March", "April", "May", "June", 
+                     "July", "August", "September", "October", "November", "December"], key="last_eye_month")
+            with col_eye2:
+                current_year = datetime.now().year
+                years = [""] + list(range(current_year, current_year - 10, -1))
+                last_eye_exam_year = st.selectbox("Year", years, key="last_eye_year")
+            
+            # Kreiraj datum od mjeseca i godine
+            last_eye_exam = None
+            if last_eye_exam_month and last_eye_exam_year:
+                try:
+                    # Postavi na prvi dan mjeseca
+                    last_eye_exam = date(last_eye_exam_year, 
+                                       ["", "January", "February", "March", "April", "May", "June", 
+                                        "July", "August", "September", "October", "November", "December"].index(last_eye_exam_month), 1)
+                except:
+                    pass
         
         st.markdown("#### Social / Lifestyle")
         col_s1, col_s2 = st.columns(2)
@@ -1079,14 +1107,14 @@ def refraction_examination():
             })
             st.success("Objective data saved!")
 
-    # 3) Subjective Refraction WITH ADD/DEG
+    # 3) Subjective Refraction WITH ADD/DEG - BEZ DISTANCE
     st.markdown("<div class='exam-section'><h4>Subjective Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("subjective_form"):
         subj_method = st.selectbox("Subjective Method", ["Fogging", "With Cycloplegic", "Other"], key="subj_method")
         
-        # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju
+        # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju - VA je predzadnja prije Mod
         st.markdown("**Subjective Refraction Parameters**")
-        col_subj_headers = st.columns(9)
+        col_subj_headers = st.columns(8)
         with col_subj_headers[0]:
             st.write("**Eye**")
         with col_subj_headers[1]:
@@ -1096,17 +1124,15 @@ def refraction_examination():
         with col_subj_headers[3]:
             st.write("**Axis**")
         with col_subj_headers[4]:
-            st.write("**VA**")
-        with col_subj_headers[5]:
             st.write("**Add**")
-        with col_subj_headers[6]:
+        with col_subj_headers[5]:
             st.write("**Deg**")
+        with col_subj_headers[6]:
+            st.write("**VA**")
         with col_subj_headers[7]:
-            st.write("**Dist**")
-        with col_subj_headers[8]:
             st.write("**Mod**")
         
-        col_subj_od = st.columns(9)
+        col_subj_od = st.columns(8)
         with col_subj_od[0]:
             st.write("**OD**")
         with col_subj_od[1]:
@@ -1116,17 +1142,15 @@ def refraction_examination():
         with col_subj_od[3]:
             subj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_axis", label_visibility="collapsed")
         with col_subj_od[4]:
-            subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
-        with col_subj_od[5]:
             subj_od_add = st.text_input("ADD OD", placeholder="+1.50", key="subj_od_add", label_visibility="collapsed")
-        with col_subj_od[6]:
+        with col_subj_od[5]:
             subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
+        with col_subj_od[6]:
+            subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
         with col_subj_od[7]:
-            subj_od_dist = st.text_input("Dist OD", placeholder="6m", key="subj_od_dist", label_visibility="collapsed")
-        with col_subj_od[8]:
             subj_od_mod = st.text_input("Mod OD", placeholder="-2", key="subj_od_mod", label_visibility="collapsed")
             
-        col_subj_os = st.columns(9)
+        col_subj_os = st.columns(8)
         with col_subj_os[0]:
             st.write("**OS**")
         with col_subj_os[1]:
@@ -1136,22 +1160,16 @@ def refraction_examination():
         with col_subj_os[3]:
             subj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_axis", label_visibility="collapsed")
         with col_subj_os[4]:
-            subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
-        with col_subj_os[5]:
             subj_os_add = st.text_input("ADD OS", placeholder="+1.50", key="subj_os_add", label_visibility="collapsed")
-        with col_subj_os[6]:
+        with col_subj_os[5]:
             subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
+        with col_subj_os[6]:
+            subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
         with col_subj_os[7]:
-            subj_os_dist = st.text_input("Dist OS", placeholder="6m", key="subj_os_dist", label_visibility="collapsed")
-        with col_subj_os[8]:
             subj_os_mod = st.text_input("Mod OS", placeholder="-2", key="subj_os_mod", label_visibility="collapsed")
         
-        # Distance s DEG Distance
-        col_distance = st.columns(2)
-        with col_distance[0]:
-            subjective_distance = st.text_input("Distance", placeholder="e.g., 6m", key="subj_distance")
-        with col_distance[1]:
-            subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
+        # DEG Distance (umjesto Distance)
+        subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
         
         subjective_notes = st.text_area("Subjective Notes", height=60, key="subj_notes")
         
@@ -1164,18 +1182,17 @@ def refraction_examination():
                 'subjective_od_va': subj_od_va, 'subjective_add_od': subj_od_add, 'subjective_deg_od': subj_od_deg,
                 'subjective_os_sphere': subj_os_sph, 'subjective_os_cylinder': subj_os_cyl, 'subjective_os_axis': subj_os_axis,
                 'subjective_os_va': subj_os_va, 'subjective_add_os': subj_os_add, 'subjective_deg_os': subj_os_deg,
-                'subjective_distance': subjective_distance,
                 'subjective_deg_distance': subjective_deg_distance,
                 'subjective_notes': subjective_notes
             })
             st.success("Subjective data saved!")
 
-    # 4) Final Prescription WITH ADD/DEG
+    # 4) Final Prescription WITH ADD/DEG - BEZ DISTANCE
     st.markdown("<div class='exam-section'><h4>Final Prescription</h4></div>", unsafe_allow_html=True)
     with st.form("final_form"):
-        # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
+        # COMPACT HORIZONTAL LAYOUT za finalnu korekciju - VA je predzadnja prije Mod
         st.markdown("**Final Prescription Parameters**")
-        col_final_headers = st.columns(9)
+        col_final_headers = st.columns(8)
         with col_final_headers[0]:
             st.write("**Eye**")
         with col_final_headers[1]:
@@ -1185,17 +1202,15 @@ def refraction_examination():
         with col_final_headers[3]:
             st.write("**Axis**")
         with col_final_headers[4]:
-            st.write("**VA**")
-        with col_final_headers[5]:
             st.write("**Add**")
-        with col_final_headers[6]:
+        with col_final_headers[5]:
             st.write("**Deg**")
+        with col_final_headers[6]:
+            st.write("**VA**")
         with col_final_headers[7]:
-            st.write("**Dist**")
-        with col_final_headers[8]:
             st.write("**Mod**")
         
-        col_final_od = st.columns(9)
+        col_final_od = st.columns(8)
         with col_final_od[0]:
             st.write("**OD**")
         with col_final_od[1]:
@@ -1205,17 +1220,15 @@ def refraction_examination():
         with col_final_od[3]:
             final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis", label_visibility="collapsed")
         with col_final_od[4]:
-            final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
-        with col_final_od[5]:
             final_add_od = st.text_input("Final ADD OD", placeholder="+1.50", key="final_add_od", label_visibility="collapsed")
-        with col_final_od[6]:
+        with col_final_od[5]:
             final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
+        with col_final_od[6]:
+            final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
         with col_final_od[7]:
-            final_od_dist = st.text_input("Dist OD", placeholder="6m", key="final_od_dist", label_visibility="collapsed")
-        with col_final_od[8]:
             final_od_mod = st.text_input("Mod OD", placeholder="-2", key="final_od_mod", label_visibility="collapsed")
             
-        col_final_os = st.columns(9)
+        col_final_os = st.columns(8)
         with col_final_os[0]:
             st.write("**OS**")
         with col_final_os[1]:
@@ -1225,14 +1238,12 @@ def refraction_examination():
         with col_final_os[3]:
             final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis", label_visibility="collapsed")
         with col_final_os[4]:
-            final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
-        with col_final_os[5]:
             final_add_os = st.text_input("Final ADD OS", placeholder="+1.50", key="final_add_os", label_visibility="collapsed")
-        with col_final_os[6]:
+        with col_final_os[5]:
             final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
+        with col_final_os[6]:
+            final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
         with col_final_os[7]:
-            final_os_dist = st.text_input("Dist OS", placeholder="6m", key="final_os_dist", label_visibility="collapsed")
-        with col_final_os[8]:
             final_os_mod = st.text_input("Mod OS", placeholder="-2", key="final_os_mod", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
@@ -1263,12 +1274,12 @@ def refraction_examination():
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
                         subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_add_od, subjective_deg_od,
-                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
+                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_deg_distance, subjective_notes,
                         binocular_balance, stereopsis,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_add_od, final_deg_od,
                         final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis, final_add_os, final_deg_os,
                         final_prescribed_binocular_va, final_deg_distance, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, st.session_state.refraction.get('habitual_type'),
                     st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
@@ -1289,7 +1300,7 @@ def refraction_examination():
                     st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
                     st.session_state.refraction.get('subjective_os_sphere'), st.session_state.refraction.get('subjective_os_cylinder'), st.session_state.refraction.get('subjective_os_axis'), 
                     st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
-                    st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
+                    st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
                     binocular_balance, stereopsis,
                     final_od_sph, final_od_cyl, final_od_axis, final_add_od, final_deg_od,
                     final_os_sph, final_os_cyl, final_os_axis, final_add_os, final_deg_os,
@@ -1377,6 +1388,9 @@ def anterior_segment_examination():
             st.rerun()
 
     with st.form("anterior_form"):
+        st.markdown("#### Biomicroscopy")
+        col_bio1, col_bio2 = st
+        with st.form("anterior_form"):
         st.markdown("#### Biomicroscopy")
         col_bio1, col_bio2 = st.columns(2)
         with col_bio1:
@@ -1495,6 +1509,7 @@ def posterior_segment_examination():
 
     with st.form("posterior_form"):
         st.markdown("#### Fundus Examination")
+        # Maknuta oftalmoskopija iz fundus exam type
         fundus_type = st.selectbox("Fundus Exam Type", 
                                  ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
         
