@@ -2068,7 +2068,7 @@ def generate_report():
                 st.session_state.selected_patient = None
                 st.rerun()
 	    if st.button("Generate Prescription Report (For Optical Dispensing)", use_container_width=True, key="generate_prescription_main"):
-    generate_prescription_report()
+        generate_prescription_report()
         # Custom Report Notes
         st.markdown("#### Clinical Assessment & Recommendations")
         assessment = st.text_area("Clinical Assessment", height=150, 
@@ -2929,4 +2929,5 @@ def main():
         main_navigation()
 
 if __name__ == "__main__":
+
     main()
