@@ -2056,27 +2056,26 @@ def generate_report():
         p = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(pid_code,)).iloc[0]
         
         # Navigation
-        col_nav = st.columns(3)
-        with col_nav[0]:
-            if st.button("Back to Contact Lenses", use_container_width=True):
-                st.session_state.exam_step = "contact_lenses"
-                st.rerun()
-        with col_nav[2]:
-            if st.button("Back to Dashboard", use_container_width=True):
-                st.session_state.menu = "Dashboard"
-                st.session_state.exam_step = None
-                st.session_state.selected_patient = None
-                st.rerun()
-	    if st.button("Generate Prescription Report (For Optical Dispensing)", use_container_width=True, key="generate_prescription_main"):
-			generate_prescription_report()
-        # Custom Report Notes
-        st.markdown("#### Clinical Assessment & Recommendations")
-        assessment = st.text_area("Clinical Assessment", height=150, 
-                                placeholder="Summarize findings, diagnosis, and treatment plan...", key="assessment")
-        
-        recommendations = st.text_area("Recommendations & Follow-up", height=120,
-                                     placeholder="Next steps, medications, follow-up schedule...", key="recommendations")
+col_nav = st.columns(3)
+with col_nav[0]:
+    if st.button("Back to Contact Lenses", use_container_width=True):
+        st.session_state.exam_step = "contact_lenses"
+        st.rerun()
+with col_nav[2]:
+    if st.button("Back to Dashboard", use_container_width=True):
+        st.session_state.menu = "Dashboard"
+        st.session_state.exam_step = None
+        st.session_state.selected_patient = None
+        st.rerun()
+if st.button("Generate Prescription Report (For Optical Dispensing)", use_container_width=True, key="generate_prescription_main"):
+    generate_prescription_report()
+# Custom Report Notes
+st.markdown("#### Clinical Assessment & Recommendations")
+assessment = st.text_area("Clinical Assessment", height=150, 
+                        placeholder="Summarize findings, diagnosis, and treatment plan...", key="assessment")
 
+recommendations = st.text_area("Recommendations & Follow-up", height=120,
+                             placeholder="Next steps, medications, follow-up schedule...", key="recommendations")
         # Generate Professional Report
         st.markdown("#### Generate Final Report")
         
@@ -2931,4 +2930,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
