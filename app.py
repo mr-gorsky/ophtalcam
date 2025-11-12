@@ -8,6 +8,7 @@ import os
 import json
 import hashlib
 import math
+from fpdf import FPDF
 
 st.set_page_config(page_title="OphtalCAM EMR", page_icon="👁️", layout="wide", initial_sidebar_state="collapsed")
 
@@ -16,6 +17,43 @@ st.set_page_config(page_title="OphtalCAM EMR", page_icon="👁️", layout="wide
 # -----------------------
 @st.cache_resource
 def init_db():
+    # Auto-migration za missing stupce
+    try:
+        conn_temp = sqlite3.connect('ophtalcam.db', check_same_thread=False)
+        c_temp = conn_temp.cursor()
+        
+        # Provjeri i dodaj stupce za refraction_exams
+        c_temp.execute("PRAGMA table_info(refraction_exams)")
+        columns = [col[1] for col in c_temp.fetchall()]
+        
+        if 'habitual_add_od' not in columns:
+            c_temp.execute("ALTER TABLE refraction_exams ADD COLUMN habitual_add_od TEXT")
+        if 'habitual_add_os' not in columns:
+            c_temp.execute("ALTER TABLE refraction_exams ADD COLUMN habitual_add_os TEXT")
+        if 'habitual_deg_od' not in columns:
+            c_temp.execute("ALTER TABLE refraction_exams ADD COLUMN habitual_deg_od TEXT")
+        if 'habitual_deg_os' not in columns:
+            c_temp.execute("ALTER TABLE refraction_exams ADD COLUMN habitual_deg_os TEXT")
+            
+        # Provjeri functional_tests
+        c_temp.execute("PRAGMA table_info(functional_tests)")
+        columns = [col[1] for col in c_temp.fetchall()]
+        
+        if 'rapd' not in columns:
+            c_temp.execute("ALTER TABLE functional_tests ADD COLUMN rapd TEXT")
+            
+        # Provjeri medical_history
+        c_temp.execute("PRAGMA table_info(medical_history)")
+        columns = [col[1] for col in c_temp.fetchall()]
+        
+        if 'chief_complaint' not in columns:
+            c_temp.execute("ALTER TABLE medical_history ADD COLUMN chief_complaint TEXT")
+            
+        conn_temp.commit()
+        conn_temp.close()
+    except Exception as e:
+        print(f"Database migration: {e}")
+
     conn = sqlite3.connect('ophtalcam.db', check_same_thread=False)
     c = conn.cursor()
 
@@ -56,6 +94,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            chief_complaint TEXT,
             general_health TEXT,
             current_medications TEXT,
             allergies TEXT,
@@ -225,6 +264,8 @@ def init_db():
             oct_rnfl_od TEXT,
             oct_rnfl_os TEXT,
             oct_notes TEXT,
+            ophthalmoscopy_od TEXT,
+            ophthalmoscopy_os TEXT,
             posterior_segment_notes TEXT,
             uploaded_files TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
@@ -548,6 +589,7 @@ def view_patient_history():
                 with st.expander(f"Medical History - {record['visit_date'][:10]}"):
                     col_mh1, col_mh2 = st.columns(2)
                     with col_mh1:
+                        st.write(f"**Chief Complaint:** {record.get('chief_complaint', '')}")
                         st.write(f"**General Health:** {record['general_health']}")
                         st.write(f"**Medications:** {record['current_medications']}")
                         st.write(f"**Allergies:** {record['allergies']}")
@@ -756,7 +798,7 @@ def load_css():
     """, unsafe_allow_html=True)
 
 def draw_tabo_scheme(axis_od, axis_os):
-    """Draw Tabo scheme with axis markings for both eyes side by side"""
+    """Draw simple Tabo scheme"""
     html = """
     <div class="tabo-container">
         <div>
@@ -768,23 +810,6 @@ def draw_tabo_scheme(axis_od, axis_os):
                 <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:bold;">270°</div>
                 <div style="position:absolute; top:50%; left:10px; transform:translateY(-50%); font-weight:bold;">180°</div>
                 <div style="position:absolute; top:50%; right:10px; transform:translateY(-50%); font-weight:bold;">0°</div>
-    """
-    
-    if axis_od and axis_od != "":
-        try:
-            angle = int(axis_od)
-            rad = math.radians(angle)
-            x = 125 + 100 * math.sin(rad)
-            y = 125 - 100 * math.cos(rad)
-            html += f"""
-            <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#ff4444;">
-                {axis_od}°
-            </div>
-            """
-        except ValueError:
-            pass
-    
-    html += """
             </div>
         </div>
         <div>
@@ -796,23 +821,6 @@ def draw_tabo_scheme(axis_od, axis_os):
                 <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:bold;">270°</div>
                 <div style="position:absolute; top:50%; left:10px; transform:translateY(-50%); font-weight:bold;">180°</div>
                 <div style="position:absolute; top:50%; right:10px; transform:translateY(-50%); font-weight:bold;">0°</div>
-    """
-    
-    if axis_os and axis_os != "":
-        try:
-            angle = int(axis_os)
-            rad = math.radians(angle)
-            x = 125 + 100 * math.sin(rad)
-            y = 125 - 100 * math.cos(rad)
-            html += f"""
-            <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#4444ff;">
-                {axis_os}°
-            </div>
-            """
-        except ValueError:
-            pass
-    
-    html += """
             </div>
         </div>
     </div>
@@ -991,15 +999,16 @@ def medical_history():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### General Health")
-            general_health = st.text_area("General health status", height=100)
+            st.markdown("#### Chief Complaint & General Health")
+            chief_complaint = st.text_area("Chief Complaint / Reason for Visit", height=60)
+            general_health = st.text_area("General health status", height=80)
             current_medications = st.text_area("Current medications", height=80)
             allergies = st.text_area("Allergies", height=80)
-            headaches = st.text_area("Headaches / Migraines", height=80)
             
         with col2:
             st.markdown("#### History")
-            family_history = st.text_area("Family medical history", height=100)
+            headaches = st.text_area("Headaches / Migraines", height=80)
+            family_history = st.text_area("Family medical history", height=80)
             ocular_history = st.text_area("Ocular history", height=80)
             previous_surgeries = st.text_area("Previous surgeries", height=60)
             last_eye_exam = st.date_input("Last eye exam", value=None)
@@ -1049,10 +1058,10 @@ def medical_history():
                 c = conn.cursor()
                 c.execute('''
                     INSERT INTO medical_history
-                    (patient_id, general_health, current_medications, allergies, headaches_history, family_history,
+                    (patient_id, chief_complaint, general_health, current_medications, allergies, headaches_history, family_history,
                      ocular_history, previous_surgeries, last_eye_exam, smoking_status, alcohol_consumption, occupation, hobbies, uploaded_reports)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (pinfo['id'], general_health, current_medications, allergies, headaches, family_history, 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (pinfo['id'], chief_complaint, general_health, current_medications, allergies, headaches, family_history, 
                      ocular_history, previous_surgeries, last_eye_exam, smoking, alcohol, occupation, hobbies, json.dumps(files)))
                 conn.commit()
                 st.success("Medical history saved successfully!")
@@ -1165,13 +1174,11 @@ def refraction_examination():
         
         # Binocular vision centrirano
         st.markdown("**Binocular Vision**")
-        col_bin = st.columns(3)
+        col_bin = st.columns(2)
         with col_bin[0]:
             h_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20", key="h_bin_va")
         with col_bin[1]:
             h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
-        with col_bin[2]:
-            h_vou = st.text_input("VOU", placeholder="Visual acuity both eyes", key="h_vou")
         
         st.markdown("**Uncorrected Vision**")
         col_uc_headers = st.columns(4)
@@ -1612,13 +1619,17 @@ def anterior_segment_examination():
         with col_ac1:
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
             ac_depth_od = st.selectbox("AC Depth OD", ["Deep", "Medium", "Shallow", "Flat"], key="ac_depth_od")
+            ac_depth_value_od = st.text_input("AC Depth Value OD (mm)", placeholder="e.g., 3.2", key="ac_depth_value_od")
             ac_volume_od = st.text_input("AC Volume OD", placeholder="e.g., Normal", key="ac_vol_od")
             angle_od = st.selectbox("Iridocorneal Angle OD", ["Open", "Narrow", "Closed", "Grade 0-4"], key="angle_od")
+            angle_value_od = st.text_input("Angle Value OD (°)", placeholder="e.g., 45", key="angle_value_od")
         with col_ac2:
             st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
             ac_depth_os = st.selectbox("AC Depth OS", ["Deep", "Medium", "Shallow", "Flat"], key="ac_depth_os")
+            ac_depth_value_os = st.text_input("AC Depth Value OS (mm)", placeholder="e.g., 3.1", key="ac_depth_value_os")
             ac_volume_os = st.text_input("AC Volume OS", placeholder="e.g., Normal", key="ac_vol_os")
             angle_os = st.selectbox("Iridocorneal Angle OS", ["Open", "Narrow", "Closed", "Grade 0-4"], key="angle_os")
+            angle_value_os = st.text_input("Angle Value OS (°)", placeholder="e.g., 40", key="angle_value_os")
 
         st.markdown("#### Tonometry & Pachymetry")
         col_tono1, col_tono2 = st.columns(2)
@@ -1724,6 +1735,19 @@ def posterior_segment_examination():
                                    height=120, key="fundus_os")
         fundus_notes = st.text_area("Fundus examination notes", height=80, key="fundus_notes")
 
+        st.markdown("#### Direct/Indirect Ophthalmoscopy")
+        col_ophth1, col_ophth2 = st.columns(2)
+        with col_ophth1:
+            st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
+            ophthalmoscopy_od = st.text_area("Ophthalmoscopy OD", 
+                                           placeholder="Optic disc, macula, vessels, periphery findings", 
+                                           height=100, key="ophth_od")
+        with col_ophth2:
+            st.markdown("<div class='eye-column'><strong>Left Eye (OS)</strong></div>", unsafe_allow_html=True)
+            ophthalmoscopy_os = st.text_area("Ophthalmoscopy OS", 
+                                           placeholder="Optic disc, macula, vessels, periphery findings", 
+                                           height=100, key="ophth_os")
+
         st.markdown("#### OCT Imaging")
         col_oct1, col_oct2 = st.columns(2)
         with col_oct1:
@@ -1766,10 +1790,12 @@ def posterior_segment_examination():
                 c.execute('''
                     INSERT INTO posterior_segment_exams 
                     (patient_id, fundus_exam_type, fundus_od, fundus_os, fundus_notes,
-                     oct_macula_od, oct_macula_os, oct_rnfl_od, oct_rnfl_os, oct_notes, uploaded_files)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     oct_macula_od, oct_macula_os, oct_rnfl_od, oct_rnfl_os, oct_notes, 
+                     ophthalmoscopy_od, ophthalmoscopy_os, uploaded_files)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (p['id'], fundus_type, fundus_od, fundus_os, fundus_notes,
-                     oct_macula_od, oct_macula_os, oct_rnfl_od, oct_rnfl_os, oct_notes, json.dumps(file_paths)))
+                     oct_macula_od, oct_macula_os, oct_rnfl_od, oct_rnfl_os, oct_notes,
+                     ophthalmoscopy_od, ophthalmoscopy_os, json.dumps(file_paths)))
                 conn.commit()
                 st.success("Posterior segment examination saved successfully!")
                 st.session_state.exam_step = "contact_lenses"
@@ -1896,12 +1922,6 @@ def contact_lenses():
                                         accept_multiple_files=True,
                                         help="Document lens fit with slit lamp images, topography maps, etc.", key="cl_upload")
         
-        # OphtalCAM device integration
-        st.markdown("#### OphtalCAM Device Integration")
-        if st.button("Start OphtalCAM Device", use_container_width=True, key="start_ophtalcam"):
-            st.info("OphtalCAM device integration would be implemented here")
-            # This would integrate with actual OphtalCAM hardware
-        
         submit_cl = st.form_submit_button("Save Contact Lens Prescription", use_container_width=True)
         
         if submit_cl:
@@ -1960,6 +1980,11 @@ def contact_lenses():
                 st.rerun()
             except Exception as e:
                 st.error(f"Database error: {str(e)}")
+    
+    # OphtalCAM device integration - IZVAN forme
+    st.markdown("#### OphtalCAM Device Integration")
+    if st.button("Start OphtalCAM Device", use_container_width=True, key="start_ophtalcam"):
+        st.info("OphtalCAM device integration would be implemented here")
 
 # -----------------------
 # PROFESSIONAL CLINICAL REPORT GENERATION
@@ -2056,56 +2081,82 @@ def generate_report():
 
         # Generate Professional Report
         st.markdown("#### Generate Final Report")
-        if st.button("Generate Printable Report", use_container_width=True, key="generate_report_btn"):
-            # Create comprehensive professional report
-            report_content = f"""
-OPHTALCAM CLINICAL MANAGEMENT SYSTEM - CLINICAL REPORT
+        
+        # Comprehensive Report za eyecare practicionera
+        if st.button("Generate Comprehensive Report (PDF)", use_container_width=True, key="generate_comprehensive"):
+            # Generiraj comprehensive PDF
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            
+            # Dodaj sadržaj
+            content = f"""
+COMPREHENSIVE CLINICAL REPORT - OPHTHALCAM EMR
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
-CLINICIAN INFORMATION:
-Clinician: {st.session_state.username}
-Role: {st.session_state.role}
-Report Date: {date.today().strftime('%d.%m.%Y')}
+CLINICIAN: {st.session_state.username}
+PATIENT: {p['first_name']} {p['last_name']}
+ID: {p['patient_id']}
+DOB: {p['date_of_birth']}
 
-PATIENT INFORMATION:
-Name: {p['first_name']} {p['last_name']}
-Patient ID: {p['patient_id']}
-Date of Birth: {p['date_of_birth']}
-Gender: {p['gender']}
-Contact: {p['phone']} | {p['email']}
+ASSESSMENT: {assessment}
+RECOMMENDATIONS: {recommendations}
+"""
+            
+            for line in content.split('\n'):
+                pdf.cell(200, 10, txt=line, ln=True)
+            
+            # Spremi PDF
+            pdf_output = f"comprehensive_report_{p['patient_id']}_{date.today().strftime('%Y%m%d')}.pdf"
+            pdf.output(pdf_output)
+            
+            with open(pdf_output, "rb") as f:
+                st.download_button(
+                    label="Download Comprehensive PDF",
+                    data=f,
+                    file_name=pdf_output,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
 
-EXAMINATION SUMMARY:
-{assessment if assessment else "Comprehensive ophthalmological examination performed."}
+        # Simple Report za pacijenta
+        if st.button("Generate Patient Report (PDF)", use_container_width=True, key="generate_patient"):
+            # Generiraj jednostavni PDF
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            
+            content = f"""
+PATIENT REPORT - OPHTHALCAM CLINIC
+Date: {date.today().strftime('%d.%m.%Y')}
 
-CLINICAL FINDINGS:
-- Refraction: {f"OD: {ref.get('final_prescribed_od_sphere', '')} {ref.get('final_prescribed_od_cylinder', '')} x {ref.get('final_prescribed_od_axis', '')}" if not refraction_data.empty else "Not recorded"}
-- Anterior Segment: Normal examination findings
-- Posterior Segment: Within normal limits
-- Contact Lenses: {f"{cl.get('lens_type', '')} lenses prescribed" if not cl_data.empty else "Not prescribed"}
+Dear {p['first_name']} {p['last_name']},
 
-RECOMMENDATIONS:
-{recommendations if recommendations else "Routine follow-up recommended."}
+Your eye examination results:
 
-ADDITIONAL NOTES:
-This report was generated using OphtalCAM EMR system.
-All findings should be interpreted in clinical context.
+{recommendations if recommendations else "All findings are within normal limits."}
 
-Clinician Signature: 
-_________________________
+Please follow up as recommended.
+
+Sincerely,
 {st.session_state.username}
-{date.today().strftime('%d %B %Y')}
-            """
+OphtalCAM Clinic
+"""
             
-            st.download_button(
-                label="Download Report as TXT",
-                data=report_content,
-                file_name=f"clinical_report_{p['patient_id']}_{date.today().strftime('%Y%m%d')}.txt",
-                mime="text/plain",
-                use_container_width=True,
-                key="download_report"
-            )
+            for line in content.split('\n'):
+                pdf.cell(200, 10, txt=line, ln=True)
             
-            st.success("Professional report generated successfully! Click download to save.")
+            pdf_output = f"patient_report_{p['patient_id']}_{date.today().strftime('%Y%m%d')}.pdf"
+            pdf.output(pdf_output)
+            
+            with open(pdf_output, "rb") as f:
+                st.download_button(
+                    label="Download Patient PDF",
+                    data=f,
+                    file_name=pdf_output,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
 
     except Exception as e:
         st.error(f"Error generating report: {str(e)}")
@@ -2564,7 +2615,7 @@ def main():
         # Professional header s PhantasMED logom
         col_header1, col_header2, col_header3 = st.columns([2, 1, 1])
         with col_header1:
-            st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=150)
+            st.image("https://i.postimg.cc/qq656tks/Phantasmed-logo.png", width=250)
         with col_header2:
             st.write(f"**Clinician:** {st.session_state.username}")
             st.write(f"**Role:** {st.session_state.role}")
