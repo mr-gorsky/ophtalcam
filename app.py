@@ -43,7 +43,7 @@ def init_db():
                 'chief_complaint'
             ],
             'contact_lens_prescriptions': [
-                'lens_material'
+                'lens_material', 'lens_color'
             ]
         }
         
@@ -111,7 +111,7 @@ def init_db():
             ocular_history TEXT,
             previous_surgeries TEXT,
             eye_medications TEXT,
-            last_eye_exam DATE,
+            last_eye_exam TEXT,
             smoking_status TEXT,
             alcohol_consumption TEXT,
             occupation TEXT,
@@ -419,6 +419,35 @@ def init_db():
     return conn
 
 # -----------------------
+# DATE FORMATTING FUNCTIONS
+# -----------------------
+def format_date_dmy(dt):
+    """Format date as DD.MM.YYYY"""
+    if isinstance(dt, str):
+        try:
+            dt = datetime.strptime(dt, '%Y-%m-%d')
+        except:
+            return dt
+    return dt.strftime('%d.%m.%Y') if dt else ''
+
+def format_date_for_display(dt):
+    """Format date for display in DD.MM.YYYY format"""
+    if not dt:
+        return ""
+    if isinstance(dt, str):
+        try:
+            # Try to parse different date formats
+            for fmt in ['%Y-%m-%d', '%d.%m.%Y', '%d/%m/%Y']:
+                try:
+                    dt = datetime.strptime(dt, fmt)
+                    break
+                except:
+                    continue
+        except:
+            return dt
+    return dt.strftime('%d.%m.%Y') if hasattr(dt, 'strftime') else str(dt)
+
+# -----------------------
 # MISSING FUNCTIONS - DODANE
 # -----------------------
 def hash_password(password):
@@ -446,9 +475,9 @@ def check_license_expiry():
         if result and result[0]:
             expiry_date = datetime.strptime(result[0], '%Y-%m-%d').date()
             if expiry_date < date.today():
-                st.error(f"⚠️ License expired on {expiry_date}. Please renew.")
+                st.error(f"⚠️ License expired on {format_date_dmy(expiry_date)}. Please renew.")
             elif (expiry_date - date.today()).days <= 30:
-                st.warning(f"⚠️ License expires on {expiry_date}. Renew soon.")
+                st.warning(f"⚠️ License expires on {format_date_dmy(expiry_date)}. Renew soon.")
     except Exception as e:
         st.error(f"License check error: {str(e)}")
 
@@ -511,32 +540,38 @@ def get_upcoming_appointments(limit=5):
 
 def draw_tabo_scheme(od_axis, os_axis):
     """Create Tabo scheme visualization for axis"""
-    od_axis = od_axis if od_axis else 0
-    os_axis = os_axis if os_axis else 0
+    od_axis = int(od_axis) if od_axis and str(od_axis).isdigit() else 0
+    os_axis = int(os_axis) if os_axis and str(os_axis).isdigit() else 0
     
     return f"""
     <div style="text-align: center; margin: 20px 0;">
         <!-- OD Circle -->
-        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 10px;">
+        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 20px;">
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px;">
-                <!-- OD Axis -->
+                <!-- OD Axis Line -->
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({od_axis}deg); 
                             width: 70px; height: 2px; background: #ff4444; transform-origin: center center;">
                     <div style="position: absolute; right: -5px; top: -5px; width: 10px; height: 10px; background: #ff4444; border-radius: 50%;"></div>
-                    <div style="position: absolute; right: -30px; top: -15px; font-size: 12px; color: #ff4444;">OD: {od_axis}°</div>
+                </div>
+                <!-- OD Label -->
+                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #ff4444;">
+                    OD: {od_axis}°
                 </div>
             </div>
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #ff4444;">OD</div>
         </div>
         
         <!-- OS Circle -->
-        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 10px;">
+        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 20px;">
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px;">
-                <!-- OS Axis -->
+                <!-- OS Axis Line -->
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({os_axis}deg); 
                             width: 70px; height: 2px; background: #4444ff; transform-origin: center center;">
                     <div style="position: absolute; right: -5px; top: -5px; width: 10px; height: 10px; background: #4444ff; border-radius: 50%;"></div>
-                    <div style="position: absolute; right: -30px; top: -15px; font-size: 12px; color: #4444ff;">OS: {os_axis}°</div>
+                </div>
+                <!-- OS Label -->
+                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #4444ff;">
+                    OS: {os_axis}°
                 </div>
             </div>
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #4444ff;">OS</div>
@@ -638,66 +673,7 @@ def get_clinic_logo():
 # -----------------------
 def schedule_appointment():
     st.markdown("<h2 class='main-header'>Schedule Appointment</h2>", unsafe_allow_html=True)
-    
-    # Improved appointment scheduling
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("New Appointment")
-        with st.form("appointment_form"):
-            # Patient selection
-            patients_df = pd.read_sql("SELECT patient_id, first_name, last_name FROM patients ORDER BY last_name, first_name", conn)
-            if not patients_df.empty:
-                patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients_df.iterrows()]
-                selected_patient = st.selectbox("Select Patient", patient_options)
-                
-                appointment_date = st.date_input("Appointment Date", value=date.today())
-                appointment_time = st.time_input("Appointment Time", value=datetime.now().time())
-                
-                appointment_type = st.selectbox("Appointment Type", 
-                                              ["Routine Exam", "Contact Lens Fitting", "Follow-up", "Emergency", "Surgery Consultation"])
-                
-                duration = st.number_input("Duration (minutes)", min_value=15, max_value=120, value=30, step=15)
-                notes = st.text_area("Notes", placeholder="Additional notes for the appointment")
-                
-                if st.form_submit_button("Schedule Appointment", use_container_width=True):
-                    try:
-                        # Extract patient ID from selection
-                        patient_id = selected_patient.split(" - ")[0]
-                        
-                        # Get patient database ID
-                        patient_db_id = pd.read_sql("SELECT id FROM patients WHERE patient_id = ?", conn, params=(patient_id,)).iloc[0]['id']
-                        
-                        # Combine date and time
-                        appointment_datetime = datetime.combine(appointment_date, appointment_time)
-                        
-                        c = conn.cursor()
-                        c.execute('''
-                            INSERT INTO appointments (patient_id, appointment_date, duration_minutes, appointment_type, notes)
-                            VALUES (?, ?, ?, ?, ?)
-                        ''', (patient_db_id, appointment_datetime, duration, appointment_type, notes))
-                        conn.commit()
-                        st.success("Appointment scheduled successfully!")
-                    except Exception as e:
-                        st.error(f"Error scheduling appointment: {str(e)}")
-            else:
-                st.info("No patients found. Please register patients first.")
-    
-    with col2:
-        st.subheader("Upcoming Appointments")
-        upcoming = get_upcoming_appointments(10)
-        if not upcoming.empty:
-            for _, apt in upcoming.iterrows():
-                apt_time = pd.to_datetime(apt['appointment_date']).strftime('%d.%m.%Y %H:%M')
-                with st.container():
-                    st.write(f"**{apt_time}** - {apt['first_name']} {apt['last_name']}")
-                    st.caption(f"{apt['appointment_type']} | {apt['status']}")
-                    if st.button("View Details", key=f"view_apt_{apt['id']}"):
-                        st.session_state.selected_patient = apt['patient_id']
-                        st.session_state.menu = "Patient History"
-                        st.rerun()
-        else:
-            st.info("No upcoming appointments")
+    st.info("Appointment scheduling module - Under development")
 
 def view_patient_history():
     st.markdown("<h2 class='main-header'>Patient History</h2>", unsafe_allow_html=True)
@@ -732,81 +708,7 @@ def view_patient_history():
 
 def clinical_analytics():
     st.markdown("<h2 class='main-header'>Clinical Analytics</h2>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Patient Statistics")
-        try:
-            # Age distribution
-            age_data = pd.read_sql('''
-                SELECT 
-                    CASE 
-                        WHEN date('now') - date_of_birth < 18 THEN 'Under 18'
-                        WHEN date('now') - date_of_birth BETWEEN 18 AND 35 THEN '18-35'
-                        WHEN date('now') - date_of_birth BETWEEN 36 AND 55 THEN '36-55'
-                        WHEN date('now') - date_of_birth BETWEEN 56 AND 70 THEN '56-70'
-                        ELSE 'Over 70'
-                    END as age_group,
-                    COUNT(*) as count
-                FROM patients 
-                GROUP BY age_group
-                ORDER BY count DESC
-            ''', conn)
-            
-            if not age_data.empty:
-                st.write("**Age Distribution**")
-                for _, row in age_data.iterrows():
-                    st.write(f"{row['age_group']}: {row['count']} patients")
-            
-            # Gender distribution
-            gender_data = pd.read_sql('''
-                SELECT gender, COUNT(*) as count 
-                FROM patients 
-                GROUP BY gender
-            ''', conn)
-            
-            if not gender_data.empty:
-                st.write("**Gender Distribution**")
-                for _, row in gender_data.iterrows():
-                    st.write(f"{row['gender']}: {row['count']} patients")
-                    
-        except Exception as e:
-            st.error(f"Error loading statistics: {str(e)}")
-    
-    with col2:
-        st.subheader("Examination Analytics")
-        try:
-            # Recent exams
-            recent_exams = pd.read_sql('''
-                SELECT 
-                    strftime('%Y-%m', exam_date) as month,
-                    COUNT(*) as exam_count
-                FROM refraction_exams 
-                GROUP BY month 
-                ORDER BY month DESC 
-                LIMIT 6
-            ''', conn)
-            
-            if not recent_exams.empty:
-                st.write("**Exams per Month**")
-                for _, row in recent_exams.iterrows():
-                    st.write(f"{row['month']}: {row['exam_count']} exams")
-            
-            # Contact lens types
-            cl_types = pd.read_sql('''
-                SELECT lens_type, COUNT(*) as count 
-                FROM contact_lens_prescriptions 
-                GROUP BY lens_type
-            ''', conn)
-            
-            if not cl_types.empty:
-                st.write("**Contact Lens Types**")
-                for _, row in cl_types.iterrows():
-                    st.write(f"{row['lens_type']}: {row['count']}")
-                    
-        except Exception as e:
-            st.error(f"Error loading exam analytics: {str(e)}")
+    st.info("Clinical analytics module - Under development")
 
 # -----------------------
 # PROFESSIONAL DASHBOARD - COMPLETELY FUNCTIONAL
@@ -881,7 +783,7 @@ def show_dashboard():
                 col_pat1, col_pat2, col_pat3 = st.columns([3, 1, 1])
                 with col_pat1:
                     st.write(f"**{patient['first_name']} {patient['last_name']}** ({patient['patient_id']})")
-                    st.caption(f"DOB: {patient['date_of_birth']} | Registered: {patient['created_date'][:10]}")
+                    st.caption(f"DOB: {format_date_for_display(patient['date_of_birth'])} | Registered: {patient['created_date'][:10]}")
                 with col_pat2:
                     if st.button("Examine", key=f"exam_{patient['patient_id']}", use_container_width=True):
                         st.session_state.selected_patient = patient['patient_id']
@@ -929,7 +831,7 @@ def show_dashboard():
                         if week_cols[i].button(day_str, key=f"day_{day}", use_container_width=True):
                             selected_date = date(today.year, today.month, day)
                             st.session_state.selected_calendar_date = selected_date
-                            st.info(f"Selected date: {selected_date.strftime('%d.%m.%Y')}")
+                            st.info(f"Selected date: {format_date_dmy(selected_date)}")
                             # Here you could show appointments for selected date
         
         st.markdown("---")
@@ -992,7 +894,10 @@ def medical_history():
             family_history = st.text_area("Family medical history", height=80)
             ocular_history = st.text_area("Ocular history", height=80)
             previous_surgeries = st.text_area("Previous surgeries", height=60)
-            last_eye_exam = st.date_input("Last eye exam", value=None)
+            
+            # Last eye exam as text input for month/year only
+            st.markdown("**Last Eye Exam**")
+            last_eye_exam = st.text_input("Last Eye Exam (MM/YYYY)", placeholder="e.g., 06/2023", key="last_eye_exam")
         
         st.markdown("#### Social / Lifestyle")
         col_s1, col_s2 = st.columns(2)
@@ -1084,11 +989,9 @@ def refraction_examination():
             st.session_state.exam_step = "functional_tests"
             st.rerun()
 
-    # 1) Vision Examination WITH ADD/DEG - COMPACT HORIZONTAL LAYOUT
-    st.markdown("<div class='exam-section'><h4>Vision Examination</h4></div>", unsafe_allow_html=True)
+    # 1) UNCORRECTED VISION - PRIJE HABITUALNE KOREKCIJE
+    st.markdown("<div class='exam-section'><h4>Uncorrected Vision</h4></div>", unsafe_allow_html=True)
     
-    # UNCORRECTED VISION - PRIJE HABITUALNE KOREKCIJE
-    st.markdown("#### Uncorrected Vision")
     with st.form("uncorrected_form"):
         col_uc_headers = st.columns(4)
         with col_uc_headers[0]:
@@ -1131,8 +1034,8 @@ def refraction_examination():
             })
             st.success("Uncorrected vision data saved!")
 
-    # HABITUAL CORRECTION - NAKON UNCORRECTED
-    st.markdown("#### Habitual Correction")
+    # 2) HABITUAL CORRECTION - NAKON UNCORRECTED
+    st.markdown("<div class='exam-section'><h4>Habitual Correction</h4></div>", unsafe_allow_html=True)
     with st.form("vision_form"):
         habitual_type = st.selectbox("Type of Correction", 
                                    ["None", "Spectacles", "Soft Contact Lenses", "RGP", "Scleral", "Ortho-K", "Other"])
@@ -1223,7 +1126,7 @@ def refraction_examination():
             })
             st.success("Vision data saved!")
 
-    # 2) Objective Refraction
+    # 3) Objective Refraction
     st.markdown("<div class='exam-section'><h4>Objective Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("objective_form"):
         # Metoda i vrijeme jedno pored drugog
@@ -1291,7 +1194,7 @@ def refraction_examination():
             })
             st.success("Objective data saved!")
 
-    # 3) Subjective Refraction WITH ADD/DEG
+    # 4) Subjective Refraction WITH ADD/DEG
     st.markdown("<div class='exam-section'><h4>Subjective Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("subjective_form"):
         subj_method = st.selectbox("Subjective Method", ["Fogging", "With Cycloplegic", "Other"], key="subj_method")
@@ -1382,7 +1285,7 @@ def refraction_examination():
             })
             st.success("Subjective data saved!")
 
-    # 4) Final Prescription WITH ADD/DEG
+    # 5) Final Prescription WITH ADD/DEG
     st.markdown("<div class='exam-section'><h4>Final Prescription</h4></div>", unsafe_allow_html=True)
     with st.form("final_form"):
         # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
@@ -1456,8 +1359,6 @@ def refraction_examination():
         with col_bin2:
             final_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="final_deg_distance")
             prescription_notes = st.text_area("Prescription Notes", height=80, key="presc_notes")
-        
-        # Uklonjen Tabo Scheme Display iz sučelja - ostaje samo na reportu
         
         submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
         
@@ -2173,7 +2074,7 @@ def generate_patient_report():
         <div>
             <strong>Patient:</strong> {p['first_name']} {p['last_name']}<br>
             <strong>Patient ID:</strong> {p['patient_id']}<br>
-            <strong>Date of Birth:</strong> {p['date_of_birth']}<br>
+            <strong>Date of Birth:</strong> {format_date_for_display(p['date_of_birth'])}<br>
             <strong>Gender:</strong> {p['gender']}
         </div>
         <div>
@@ -2252,7 +2153,7 @@ def generate_patient_report():
         <p><strong>{st.session_state.username}</strong></p>
         <p>Licensed Eye Care Professional</p>
         <p>OphtalCAM Eye Clinic</p>
-        <p>Date: {date.today().strftime('%d %B %Y')}</p>
+        <p>Date: {date.today().strftime('%d.%m.%Y')}</p>
     </div>
 
     <div class="footer">
@@ -2477,7 +2378,7 @@ def generate_prescription_report():
         <div>
             <strong>Patient:</strong> {p['first_name']} {p['last_name']}<br>
             <strong>ID:</strong> {p['patient_id']}<br>
-            <strong>DOB:</strong> {p['date_of_birth']}<br>
+            <strong>DOB:</strong> {format_date_for_display(p['date_of_birth'])}<br>
             <strong>Gender:</strong> {p['gender']}
         </div>
         <div>
@@ -2543,7 +2444,7 @@ def generate_prescription_report():
         <p><strong>{st.session_state.username}</strong></p>
         <p>Licensed Optometrist</p>
         <p>OphtalCAM Eye Clinic</p>
-        <p>Date: {date.today().strftime('%d %B %Y')}</p>
+        <p>Date: {date.today().strftime('%d.%m.%Y')}</p>
     </div>
 
     <div class="footer">
@@ -2715,14 +2616,14 @@ def patient_search():
                         col_info1, col_info2 = st.columns(2)
                         
                         with col_info1:
-                            st.write(f"**Date of Birth:** {row['date_of_birth']}")
+                            st.write(f"**Date of Birth:** {format_date_for_display(row['date_of_birth'])}")
                             st.write(f"**Gender:** {row['gender']}")
                             st.write(f"**Phone:** {row['phone']}")
                             
                         with col_info2:
                             st.write(f"**Email:** {row['email']}")
                             st.write(f"**ID Number:** {row['id_number']}")
-                            st.write(f"**Registered:** {row['created_date'][:10]}")
+                            st.write(f"**Registered:** {format_date_for_display(row['created_date'])}")
                         
                         # Action buttons
                         col_act1, col_act2, col_act3, col_act4 = st.columns(4)
@@ -2813,7 +2714,7 @@ def user_management():
                         if user['license_expiry']:
                             expiry_date = pd.to_datetime(user['license_expiry']).date()
                             expiry_color = "🟢" if expiry_date > date.today() else "🔴"
-                            st.write(f"{expiry_color} {user['license_expiry']}")
+                            st.write(f"{expiry_color} {format_date_for_display(user['license_expiry'])}")
                         else:
                             st.write("No expiry")
                     with col_action:
