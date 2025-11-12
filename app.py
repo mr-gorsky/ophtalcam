@@ -8,7 +8,6 @@ import os
 import json
 import hashlib
 import math
-from fpdf import FPDF
 
 st.set_page_config(page_title="OphtalCAM EMR", page_icon="👁️", layout="wide", initial_sidebar_state="collapsed")
 
@@ -2625,4 +2624,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
