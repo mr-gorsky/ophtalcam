@@ -1970,17 +1970,17 @@ def generate_prescription_report():
 """
             def generate_prescription_report():
     """Generate professional optometric prescription report with Tabo scheme"""
-    st.markdown("<h2 class='main-header'>Optometric Prescription Report</h2>", unsafe_allow_html=True)
+st.markdown("<h2 class='main-header'>Optometric Prescription Report</h2>", unsafe_allow_html=True)
     
     if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
-        st.error("No patient selected.")
-        return
+    st.error("No patient selected.")
+    return
     
     pid_code = st.session_state.selected_patient
     
     try:
-        # Get patient info
-        p = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(pid_code,)).iloc[0]
+    # Get patient info
+    p = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(pid_code,)).iloc[0]
         
         # Get latest refraction
         refraction_data = pd.read_sql('''
@@ -2709,4 +2709,5 @@ def main():
         main_navigation()
 
 if __name__ == "__main__":
+
     main()
