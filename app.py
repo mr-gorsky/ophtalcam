@@ -729,12 +729,12 @@ def load_css():
         margin-bottom: 0.5rem;
     }
     .tabo-scheme {
-        width: 300px;
-        height: 300px;
+        width: 250px;
+        height: 250px;
         position: relative;
         border: 2px solid #333;
         border-radius: 50%;
-        margin: 20px auto;
+        margin: 10px auto;
         background: white;
     }
     .tabo-axis {
@@ -746,44 +746,77 @@ def load_css():
         border-radius: 3px;
         font-size: 12px;
     }
+    .tabo-container {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin: 1rem 0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 def draw_tabo_scheme(axis_od, axis_os):
-    """Draw Tabo scheme with axis markings"""
-    html = f"""
-    <div class="tabo-scheme">
-        <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:#333;"></div>
-        <div style="position:absolute; top:0; bottom:0; left:50%; width:1px; background:#333;"></div>
-        <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); font-weight:bold;">90°</div>
-        <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:bold;">270°</div>
-        <div style="position:absolute; top:50%; left:10px; transform:translateY(-50%); font-weight:bold;">180°</div>
-        <div style="position:absolute; top:50%; right:10px; transform:translateY(-50%); font-weight:bold;">0°</div>
+    """Draw Tabo scheme with axis markings for both eyes side by side"""
+    html = """
+    <div class="tabo-container">
+        <div>
+            <h4 style="text-align:center;">OD (Right Eye)</h4>
+            <div class="tabo-scheme">
+                <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:#333;"></div>
+                <div style="position:absolute; top:0; bottom:0; left:50%; width:1px; background:#333;"></div>
+                <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); font-weight:bold;">90°</div>
+                <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:bold;">270°</div>
+                <div style="position:absolute; top:50%; left:10px; transform:translateY(-50%); font-weight:bold;">180°</div>
+                <div style="position:absolute; top:50%; right:10px; transform:translateY(-50%); font-weight:bold;">0°</div>
     """
     
     if axis_od and axis_od != "":
-        angle = int(axis_od)
-        rad = math.radians(angle)
-        x = 150 + 120 * math.sin(rad)
-        y = 150 - 120 * math.cos(rad)
-        html += f"""
-        <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#ff4444;">
-            OD: {axis_od}°
+        try:
+            angle = int(axis_od)
+            rad = math.radians(angle)
+            x = 125 + 100 * math.sin(rad)
+            y = 125 - 100 * math.cos(rad)
+            html += f"""
+            <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#ff4444;">
+                {axis_od}°
+            </div>
+            """
+        except ValueError:
+            pass
+    
+    html += """
+            </div>
         </div>
-        """
+        <div>
+            <h4 style="text-align:center;">OS (Left Eye)</h4>
+            <div class="tabo-scheme">
+                <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:#333;"></div>
+                <div style="position:absolute; top:0; bottom:0; left:50%; width:1px; background:#333;"></div>
+                <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); font-weight:bold;">90°</div>
+                <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:bold;">270°</div>
+                <div style="position:absolute; top:50%; left:10px; transform:translateY(-50%); font-weight:bold;">180°</div>
+                <div style="position:absolute; top:50%; right:10px; transform:translateY(-50%); font-weight:bold;">0°</div>
+    """
     
     if axis_os and axis_os != "":
-        angle = int(axis_os)
-        rad = math.radians(angle)
-        x = 150 + 80 * math.sin(rad)
-        y = 150 - 80 * math.cos(rad)
-        html += f"""
-        <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#4444ff;">
-            OS: {axis_os}°
-        </div>
-        """
+        try:
+            angle = int(axis_os)
+            rad = math.radians(angle)
+            x = 125 + 100 * math.sin(rad)
+            y = 125 - 100 * math.cos(rad)
+            html += f"""
+            <div class="tabo-axis" style="top:{y-15}px; left:{x-15}px; background:#4444ff;">
+                {axis_os}°
+            </div>
+            """
+        except ValueError:
+            pass
     
-    html += "</div>"
+    html += """
+            </div>
+        </div>
+    </div>
+    """
     return html
 
 # -----------------------
@@ -1070,7 +1103,7 @@ def refraction_examination():
         
         # COMPACT HORIZONTAL LAYOUT za habitual korekciju
         st.markdown("**Habitual Correction Parameters**")
-        col_headers = st.columns(8)
+        col_headers = st.columns(9)
         with col_headers[0]:
             st.write("**Eye**")
         with col_headers[1]:
@@ -1084,11 +1117,13 @@ def refraction_examination():
         with col_headers[5]:
             st.write("**Deg**")
         with col_headers[6]:
-            st.write("**VA**")
+            st.write("**Dist**")
         with col_headers[7]:
+            st.write("**VA**")
+        with col_headers[8]:
             st.write("**Mod**")
         
-        col_od = st.columns(8)
+        col_od = st.columns(9)
         with col_od[0]:
             st.write("**OD**")
         with col_od[1]:
@@ -1102,11 +1137,13 @@ def refraction_examination():
         with col_od[5]:
             h_od_deg = st.text_input("Deg OD", placeholder="2.00", key="h_od_deg", label_visibility="collapsed")
         with col_od[6]:
-            h_od_va = st.text_input("VA OD", placeholder="1.0", key="h_od_va", label_visibility="collapsed")
+            h_od_dist = st.text_input("Dist OD", placeholder="6m", key="h_od_dist", label_visibility="collapsed")
         with col_od[7]:
+            h_od_va = st.text_input("VA OD", placeholder="1.0", key="h_od_va", label_visibility="collapsed")
+        with col_od[8]:
             h_od_mod = st.text_input("Mod OD", placeholder="-2", key="h_od_mod", label_visibility="collapsed")
         
-        col_os = st.columns(8)
+        col_os = st.columns(9)
         with col_os[0]:
             st.write("**OS**")
         with col_os[1]:
@@ -1120,8 +1157,10 @@ def refraction_examination():
         with col_os[5]:
             h_os_deg = st.text_input("Deg OS", placeholder="2.00", key="h_os_deg", label_visibility="collapsed")
         with col_os[6]:
-            h_os_va = st.text_input("VA OS", placeholder="1.0", key="h_os_va", label_visibility="collapsed")
+            h_os_dist = st.text_input("Dist OS", placeholder="6m", key="h_os_dist", label_visibility="collapsed")
         with col_os[7]:
+            h_os_va = st.text_input("VA OS", placeholder="1.0", key="h_os_va", label_visibility="collapsed")
+        with col_os[8]:
             h_os_mod = st.text_input("Mod OS", placeholder="-2", key="h_os_mod", label_visibility="collapsed")
         
         # Binocular vision centrirano
@@ -1132,8 +1171,7 @@ def refraction_examination():
         with col_bin[1]:
             h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
         with col_bin[2]:
-            # Distance maknut iz habitual dijela
-            pass
+            h_vou = st.text_input("VOU", placeholder="Visual acuity both eyes", key="h_vou")
         
         st.markdown("**Uncorrected Vision**")
         col_uc_headers = st.columns(4)
@@ -1261,7 +1299,7 @@ def refraction_examination():
         
         # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju
         st.markdown("**Subjective Refraction Parameters**")
-        col_subj_headers = st.columns(8)
+        col_subj_headers = st.columns(9)
         with col_subj_headers[0]:
             st.write("**Eye**")
         with col_subj_headers[1]:
@@ -1277,9 +1315,11 @@ def refraction_examination():
         with col_subj_headers[6]:
             st.write("**Deg**")
         with col_subj_headers[7]:
+            st.write("**Dist**")
+        with col_subj_headers[8]:
             st.write("**Mod**")
         
-        col_subj_od = st.columns(8)
+        col_subj_od = st.columns(9)
         with col_subj_od[0]:
             st.write("**OD**")
         with col_subj_od[1]:
@@ -1295,9 +1335,11 @@ def refraction_examination():
         with col_subj_od[6]:
             subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
         with col_subj_od[7]:
+            subj_od_dist = st.text_input("Dist OD", placeholder="6m", key="subj_od_dist", label_visibility="collapsed")
+        with col_subj_od[8]:
             subj_od_mod = st.text_input("Mod OD", placeholder="-2", key="subj_od_mod", label_visibility="collapsed")
             
-        col_subj_os = st.columns(8)
+        col_subj_os = st.columns(9)
         with col_subj_os[0]:
             st.write("**OS**")
         with col_subj_os[1]:
@@ -1313,6 +1355,8 @@ def refraction_examination():
         with col_subj_os[6]:
             subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
         with col_subj_os[7]:
+            subj_os_dist = st.text_input("Dist OS", placeholder="6m", key="subj_os_dist", label_visibility="collapsed")
+        with col_subj_os[8]:
             subj_os_mod = st.text_input("Mod OS", placeholder="-2", key="subj_os_mod", label_visibility="collapsed")
         
         # Distance s DEG Distance
@@ -1344,7 +1388,7 @@ def refraction_examination():
     with st.form("final_form"):
         # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
         st.markdown("**Final Prescription Parameters**")
-        col_final_headers = st.columns(8)
+        col_final_headers = st.columns(9)
         with col_final_headers[0]:
             st.write("**Eye**")
         with col_final_headers[1]:
@@ -1360,9 +1404,11 @@ def refraction_examination():
         with col_final_headers[6]:
             st.write("**Deg**")
         with col_final_headers[7]:
+            st.write("**Dist**")
+        with col_final_headers[8]:
             st.write("**Mod**")
         
-        col_final_od = st.columns(8)
+        col_final_od = st.columns(9)
         with col_final_od[0]:
             st.write("**OD**")
         with col_final_od[1]:
@@ -1378,9 +1424,11 @@ def refraction_examination():
         with col_final_od[6]:
             final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
         with col_final_od[7]:
+            final_od_dist = st.text_input("Dist OD", placeholder="6m", key="final_od_dist", label_visibility="collapsed")
+        with col_final_od[8]:
             final_od_mod = st.text_input("Mod OD", placeholder="-2", key="final_od_mod", label_visibility="collapsed")
             
-        col_final_os = st.columns(8)
+        col_final_os = st.columns(9)
         with col_final_os[0]:
             st.write("**OS**")
         with col_final_os[1]:
@@ -1396,6 +1444,8 @@ def refraction_examination():
         with col_final_os[6]:
             final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
         with col_final_os[7]:
+            final_os_dist = st.text_input("Dist OS", placeholder="6m", key="final_os_dist", label_visibility="collapsed")
+        with col_final_os[8]:
             final_os_mod = st.text_input("Mod OS", placeholder="-2", key="final_os_mod", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
@@ -1405,11 +1455,10 @@ def refraction_examination():
             final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 or 20/20", key="final_bin_va")
             
         with col_bin2:
-            # NPC maknut, DEG Distance dodan
             final_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="final_deg_distance")
             prescription_notes = st.text_area("Prescription Notes", height=80, key="presc_notes")
         
-        # Tabo Scheme Display
+        # Tabo Scheme Display - DVA SCHEMA JEDAN PORED DRUGOG
         st.markdown("#### Tabo Scheme - Axis Visualization")
         tabo_html = draw_tabo_scheme(final_od_axis, final_os_axis)
         st.markdown(tabo_html, unsafe_allow_html=True)
