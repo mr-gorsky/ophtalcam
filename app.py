@@ -2001,8 +2001,6 @@ def generate_report():
     try:
         # Get patient info
         p = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(pid_code,)).iloc[0]
-        st.markdown(f"### Clinical Report for {p['first_name']} {p['last_name']}")
-        st.markdown(f"**Patient ID:** {p['patient_id']} | **DOB:** {p['date_of_birth']} | **Gender:** {p['gender']}")
         
         # Navigation
         col_nav = st.columns(3)
@@ -2017,60 +2015,6 @@ def generate_report():
                 st.session_state.selected_patient = None
                 st.rerun()
 
-        # Collect data from all exam tables
-        st.markdown("#### Examination Summary")
-        
-        # Refraction
-        refraction_data = pd.read_sql('''
-            SELECT * FROM refraction_exams 
-            WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
-            ORDER BY exam_date DESC LIMIT 1
-        ''', conn, params=(pid_code,))
-        
-        if not refraction_data.empty:
-            ref = refraction_data.iloc[0]
-            st.markdown("**Refraction:**")
-            col_ref1, col_ref2 = st.columns(2)
-            with col_ref1:
-                st.write(f"**OD:** {ref.get('final_prescribed_od_sphere', '')} {ref.get('final_prescribed_od_cylinder', '')} x {ref.get('final_prescribed_od_axis', '')}")
-                st.write(f"**ADD OD:** {ref.get('final_add_od', '')} | **DEG OD:** {ref.get('final_deg_od', '')}")
-            with col_ref2:
-                st.write(f"**OS:** {ref.get('final_prescribed_os_sphere', '')} {ref.get('final_prescribed_os_cylinder', '')} x {ref.get('final_prescribed_os_axis', '')}")
-                st.write(f"**ADD OS:** {ref.get('final_add_os', '')} | **DEG OS:** {ref.get('final_deg_os', '')}")
-            st.write(f"**Binocular VA:** {ref.get('final_prescribed_binocular_va', '')}")
-
-        # Anterior Segment
-        anterior_data = pd.read_sql('''
-            SELECT * FROM anterior_segment_exams 
-            WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
-            ORDER BY exam_date DESC LIMIT 1
-        ''', conn, params=(pid_code,))
-        
-        if not anterior_data.empty:
-            ant = anterior_data.iloc[0]
-            st.markdown("**Anterior Segment:**")
-            col_ant1, col_ant2 = st.columns(2)
-            with col_ant1:
-                st.write(f"**IOP OD:** {ant.get('tonometry_od', '')} mmHg")
-                st.write(f"**IOP OS:** {ant.get('tonometry_os', '')} mmHg")
-                st.write(f"**CCT OD:** {ant.get('pachymetry_od', '')} μm")
-                st.write(f"**CCT OS:** {ant.get('pachymetry_os', '')} μm")
-            with col_ant2:
-                st.write(f"**AC Depth:** OD {ant.get('anterior_chamber_depth_od', '')}, OS {ant.get('anterior_chamber_depth_os', '')}")
-                st.write(f"**Angle:** OD {ant.get('iridocorneal_angle_od', '')}, OS {ant.get('iridocorneal_angle_os', '')}")
-
-        # Contact Lenses
-        cl_data = pd.read_sql('''
-            SELECT * FROM contact_lens_prescriptions 
-            WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
-            ORDER BY prescription_date DESC LIMIT 1
-        ''', conn, params=(pid_code,))
-        
-        if not cl_data.empty:
-            cl = cl_data.iloc[0]
-            st.markdown("**Contact Lenses:**")
-            st.write(f"**Type:** {cl.get('lens_type', '')} | **Design:** {cl.get('lens_design', '')} | **Follow-up:** {cl.get('follow_up_date', '')}")
-
         # Custom Report Notes
         st.markdown("#### Clinical Assessment & Recommendations")
         assessment = st.text_area("Clinical Assessment", height=150, 
@@ -2082,81 +2026,129 @@ def generate_report():
         # Generate Professional Report
         st.markdown("#### Generate Final Report")
         
-        # Comprehensive Report za eyecare practicionera
-        if st.button("Generate Comprehensive Report (PDF)", use_container_width=True, key="generate_comprehensive"):
-            # Generiraj comprehensive PDF
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
+        # HTML Report za print
+        if st.button("Generate Printable Report (HTML)", use_container_width=True, key="generate_html"):
             
-            # Dodaj sadržaj
-            content = f"""
-COMPREHENSIVE CLINICAL REPORT - OPHTHALCAM EMR
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+            # Collect data for report
+            refraction_data = pd.read_sql('''
+                SELECT * FROM refraction_exams 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY exam_date DESC LIMIT 1
+            ''', conn, params=(pid_code,))
+            
+            anterior_data = pd.read_sql('''
+                SELECT * FROM anterior_segment_exams 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY exam_date DESC LIMIT 1
+            ''', conn, params=(pid_code,))
+            
+            cl_data = pd.read_sql('''
+                SELECT * FROM contact_lens_prescriptions 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY prescription_date DESC LIMIT 1
+            ''', conn, params=(pid_code,))
 
-CLINICIAN: {st.session_state.username}
-PATIENT: {p['first_name']} {p['last_name']}
-ID: {p['patient_id']}
-DOB: {p['date_of_birth']}
+            # Generiraj HTML za print
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Clinical Report - {p['first_name']} {p['last_name']}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }}
+        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
+        .section {{ margin-bottom: 20px; }}
+        .section-title {{ font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }}
+        .patient-info {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }}
+        .signature {{ margin-top: 50px; border-top: 1px solid #333; padding-top: 20px; }}
+        @media print {{
+            body {{ margin: 0; }}
+            .no-print {{ display: none; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>OPHTHALCAM CLINICAL MANAGEMENT SYSTEM</h1>
+        <h2>CLINICAL REPORT</h2>
+        <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+    </div>
 
-ASSESSMENT: {assessment}
-RECOMMENDATIONS: {recommendations}
+    <div class="section">
+        <div class="section-title">CLINICIAN INFORMATION</div>
+        <div class="patient-info">
+            <div><strong>Clinician:</strong> {st.session_state.username}</div>
+            <div><strong>Role:</strong> {st.session_state.role}</div>
+            <div><strong>Report Date:</strong> {date.today().strftime('%d.%m.%Y')}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">PATIENT INFORMATION</div>
+        <div class="patient-info">
+            <div><strong>Name:</strong> {p['first_name']} {p['last_name']}</div>
+            <div><strong>Patient ID:</strong> {p['patient_id']}</div>
+            <div><strong>Date of Birth:</strong> {p['date_of_birth']}</div>
+            <div><strong>Gender:</strong> {p['gender']}</div>
+            <div><strong>Phone:</strong> {p['phone']}</div>
+            <div><strong>Email:</strong> {p['email']}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">EXAMINATION SUMMARY</div>
+        <p>{assessment if assessment else "Comprehensive ophthalmological examination performed."}</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">CLINICAL FINDINGS</div>
+        {"<p><strong>Refraction:</strong><br>" + 
+         f"OD: {refraction_data.iloc[0].get('final_prescribed_od_sphere', '')} {refraction_data.iloc[0].get('final_prescribed_od_cylinder', '')} x {refraction_data.iloc[0].get('final_prescribed_od_axis', '')}<br>" +
+         f"OS: {refraction_data.iloc[0].get('final_prescribed_os_sphere', '')} {refraction_data.iloc[0].get('final_prescribed_os_cylinder', '')} x {refraction_data.iloc[0].get('final_prescribed_os_axis', '')}<br>" +
+         f"Binocular VA: {refraction_data.iloc[0].get('final_prescribed_binocular_va', 'Not recorded')}</p>" if not refraction_data.empty else "<p>Refraction: Not recorded</p>"}
+        
+        {"<p><strong>Anterior Segment:</strong><br>" +
+         f"IOP: OD {anterior_data.iloc[0].get('tonometry_od', '')} mmHg | OS {anterior_data.iloc[0].get('tonometry_os', '')} mmHg<br>" +
+         f"CCT: OD {anterior_data.iloc[0].get('pachymetry_od', '')} μm | OS {anterior_data.iloc[0].get('pachymetry_os', '')} μm</p>" if not anterior_data.empty else "<p>Anterior Segment: Not recorded</p>"}
+        
+        {"<p><strong>Contact Lenses:</strong> " + f"{cl_data.iloc[0].get('lens_type', '')} lenses prescribed</p>" if not cl_data.empty else ""}
+    </div>
+
+    <div class="section">
+        <div class="section-title">RECOMMENDATIONS</div>
+        <p>{recommendations if recommendations else "Routine follow-up recommended."}</p>
+    </div>
+
+    <div class="signature">
+        <p><strong>Clinician Signature:</strong></p>
+        <br><br>
+        <p>_________________________________________</p>
+        <p>{st.session_state.username}</p>
+        <p>{date.today().strftime('%d %B %Y')}</p>
+    </div>
+
+    <div class="no-print" style="margin-top: 30px; padding: 10px; background: #f0f0f0;">
+        <p><strong>Print Instructions:</strong> Press Ctrl+P to print this report</p>
+    </div>
+</body>
+</html>
 """
             
-            for line in content.split('\n'):
-                pdf.cell(200, 10, txt=line, ln=True)
+            # Prikaži HTML u Streamlitu i omogući download
+            st.markdown("### Printable Report Preview")
+            st.components.v1.html(html_content, height=800, scrolling=True)
             
-            # Spremi PDF
-            pdf_output = f"comprehensive_report_{p['patient_id']}_{date.today().strftime('%Y%m%d')}.pdf"
-            pdf.output(pdf_output)
+            # Download button za HTML file
+            st.download_button(
+                label="Download HTML Report",
+                data=html_content,
+                file_name=f"clinical_report_{p['patient_id']}_{date.today().strftime('%Y%m%d')}.html",
+                mime="text/html",
+                use_container_width=True
+            )
             
-            with open(pdf_output, "rb") as f:
-                st.download_button(
-                    label="Download Comprehensive PDF",
-                    data=f,
-                    file_name=pdf_output,
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-
-        # Simple Report za pacijenta
-        if st.button("Generate Patient Report (PDF)", use_container_width=True, key="generate_patient"):
-            # Generiraj jednostavni PDF
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            
-            content = f"""
-PATIENT REPORT - OPHTHALCAM CLINIC
-Date: {date.today().strftime('%d.%m.%Y')}
-
-Dear {p['first_name']} {p['last_name']},
-
-Your eye examination results:
-
-{recommendations if recommendations else "All findings are within normal limits."}
-
-Please follow up as recommended.
-
-Sincerely,
-{st.session_state.username}
-OphtalCAM Clinic
-"""
-            
-            for line in content.split('\n'):
-                pdf.cell(200, 10, txt=line, ln=True)
-            
-            pdf_output = f"patient_report_{p['patient_id']}_{date.today().strftime('%Y%m%d')}.pdf"
-            pdf.output(pdf_output)
-            
-            with open(pdf_output, "rb") as f:
-                st.download_button(
-                    label="Download Patient PDF",
-                    data=f,
-                    file_name=pdf_output,
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+            st.success("HTML report generated! Click 'Download HTML Report' and open the file in your browser to print.")
 
     except Exception as e:
         st.error(f"Error generating report: {str(e)}")
@@ -2633,3 +2625,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
