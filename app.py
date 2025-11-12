@@ -1390,7 +1390,7 @@ def anterior_segment_examination():
     with st.form("anterior_form"):
         st.markdown("#### Biomicroscopy")
         col_bio1, col_bio2 = st
-        with st.form("anterior_form"):
+with st.form("anterior_form"):
         st.markdown("#### Biomicroscopy")
         col_bio1, col_bio2 = st.columns(2)
         with col_bio1:
@@ -2821,3 +2821,6 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
+
+        
