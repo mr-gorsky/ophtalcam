@@ -27,7 +27,22 @@ def init_db():
             'refraction_exams': [
                 'subjective_add_od', 'subjective_add_os', 'subjective_deg_od', 'subjective_deg_os',
                 'habitual_add_od', 'habitual_add_os', 'habitual_deg_od', 'habitual_deg_os',
-                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os'
+                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os',
+                'habitual_distance_od_sphere', 'habitual_distance_od_cylinder', 'habitual_distance_od_axis',
+                'habitual_distance_os_sphere', 'habitual_distance_os_cylinder', 'habitual_distance_os_axis',
+                'habitual_near_od_sphere', 'habitual_near_od_cylinder', 'habitual_near_od_axis',
+                'habitual_near_os_sphere', 'habitual_near_os_cylinder', 'habitual_near_os_axis',
+                'habitual_distance_od_prism', 'habitual_distance_od_base', 'habitual_distance_os_prism', 'habitual_distance_os_base',
+                'habitual_near_od_prism', 'habitual_near_od_base', 'habitual_near_os_prism', 'habitual_near_os_base',
+                'subjective_binocular_distance_od_sphere', 'subjective_binocular_distance_od_cylinder', 'subjective_binocular_distance_od_axis',
+                'subjective_binocular_distance_os_sphere', 'subjective_binocular_distance_os_cylinder', 'subjective_binocular_distance_os_axis',
+                'subjective_binocular_near_od_sphere', 'subjective_binocular_near_od_cylinder', 'subjective_binocular_near_od_axis',
+                'subjective_binocular_near_os_sphere', 'subjective_binocular_near_os_cylinder', 'subjective_binocular_near_os_axis',
+                'subjective_binocular_distance_od_prism', 'subjective_binocular_distance_od_base', 'subjective_binocular_distance_os_prism', 'subjective_binocular_distance_os_base',
+                'subjective_binocular_near_od_prism', 'subjective_binocular_near_od_base', 'subjective_binocular_near_os_prism', 'subjective_binocular_near_os_base',
+                'final_distance_od_prism', 'final_distance_od_base', 'final_distance_os_prism', 'final_distance_os_base',
+                'final_near_od_prism', 'final_near_od_base', 'final_near_os_prism', 'final_near_os_base',
+                'bvp', 'color_vision'
             ],
             'posterior_segment_exams': [
                 'ophthalmoscopy_od', 'ophthalmoscopy_os'
@@ -121,7 +136,7 @@ def init_db():
         )
     ''')
 
-    # Refraction exams - UPDATED WITH ADD/DEG AND DISTANCE
+    # Refraction exams - UPDATED WITH NEW STRUCTURE
     c.execute('''
         CREATE TABLE IF NOT EXISTS refraction_exams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,23 +144,38 @@ def init_db():
             exam_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             habitual_type TEXT,
             habitual_od_va TEXT,
-            habitual_od_modifier TEXT,
             habitual_os_va TEXT,
-            habitual_os_modifier TEXT,
             habitual_binocular_va TEXT,
-            habitual_binocular_modifier TEXT,
             habitual_pd TEXT,
-            habitual_add_od TEXT,
-            habitual_add_os TEXT,
-            habitual_deg_od TEXT,
-            habitual_deg_os TEXT,
             vision_notes TEXT,
+            
+            -- Habitual Distance Correction
+            habitual_distance_od_sphere REAL,
+            habitual_distance_od_cylinder REAL,
+            habitual_distance_od_axis INTEGER,
+            habitual_distance_od_prism TEXT,
+            habitual_distance_od_base TEXT,
+            habitual_distance_os_sphere REAL,
+            habitual_distance_os_cylinder REAL,
+            habitual_distance_os_axis INTEGER,
+            habitual_distance_os_prism TEXT,
+            habitual_distance_os_base TEXT,
+            
+            -- Habitual Near Correction
+            habitual_near_od_sphere REAL,
+            habitual_near_od_cylinder REAL,
+            habitual_near_od_axis INTEGER,
+            habitual_near_od_prism TEXT,
+            habitual_near_od_base TEXT,
+            habitual_near_os_sphere REAL,
+            habitual_near_os_cylinder REAL,
+            habitual_near_os_axis INTEGER,
+            habitual_near_os_prism TEXT,
+            habitual_near_os_base TEXT,
+            
             uncorrected_od_va TEXT,
-            uncorrected_od_modifier TEXT,
             uncorrected_os_va TEXT,
-            uncorrected_os_modifier TEXT,
             uncorrected_binocular_va TEXT,
-            uncorrected_binocular_modifier TEXT,
             objective_method TEXT,
             objective_time TEXT,
             autorefractor_od_sphere REAL,
@@ -160,28 +190,48 @@ def init_db():
             cycloplegic_lot TEXT,
             cycloplegic_expiry DATE,
             cycloplegic_drops INTEGER,
+            
+            -- Subjective Monocular Refraction
             subjective_method TEXT,
             subjective_od_sphere REAL,
             subjective_od_cylinder REAL,
             subjective_od_axis INTEGER,
             subjective_od_va TEXT,
-            subjective_od_modifier TEXT,
-            subjective_add_od TEXT,
-            subjective_deg_od TEXT,
             subjective_os_sphere REAL,
             subjective_os_cylinder REAL,
             subjective_os_axis INTEGER,
             subjective_os_va TEXT,
-            subjective_os_modifier TEXT,
-            subjective_add_os TEXT,
-            subjective_deg_os TEXT,
-            subjective_distance TEXT,
-            subjective_deg_distance TEXT,
             subjective_notes TEXT,
+            
+            -- Subjective Binocular Refraction
+            subjective_binocular_distance_od_sphere REAL,
+            subjective_binocular_distance_od_cylinder REAL,
+            subjective_binocular_distance_od_axis INTEGER,
+            subjective_binocular_distance_od_prism TEXT,
+            subjective_binocular_distance_od_base TEXT,
+            subjective_binocular_distance_os_sphere REAL,
+            subjective_binocular_distance_os_cylinder REAL,
+            subjective_binocular_distance_os_axis INTEGER,
+            subjective_binocular_distance_os_prism TEXT,
+            subjective_binocular_distance_os_base TEXT,
+            subjective_binocular_near_od_sphere REAL,
+            subjective_binocular_near_od_cylinder REAL,
+            subjective_binocular_near_od_axis INTEGER,
+            subjective_binocular_near_od_prism TEXT,
+            subjective_binocular_near_od_base TEXT,
+            subjective_binocular_near_os_sphere REAL,
+            subjective_binocular_near_os_cylinder REAL,
+            subjective_binocular_near_os_axis INTEGER,
+            subjective_binocular_near_os_prism TEXT,
+            subjective_binocular_near_os_base TEXT,
+            subjective_binocular_notes TEXT,
+            
             binocular_balance TEXT,
             stereopsis TEXT,
             near_point_convergence_break TEXT,
             near_point_convergence_recovery TEXT,
+            
+            -- Final Prescription
             final_prescribed_od_sphere REAL,
             final_prescribed_od_cylinder REAL,
             final_prescribed_od_axis INTEGER,
@@ -189,11 +239,14 @@ def init_db():
             final_prescribed_os_cylinder REAL,
             final_prescribed_os_axis INTEGER,
             final_prescribed_binocular_va TEXT,
-            final_prescribed_binocular_modifier TEXT,
-            final_add_od TEXT,
-            final_add_os TEXT,
-            final_deg_od TEXT,
-            final_deg_os TEXT,
+            final_distance_od_prism TEXT,
+            final_distance_od_base TEXT,
+            final_distance_os_prism TEXT,
+            final_distance_os_base TEXT,
+            final_near_od_prism TEXT,
+            final_near_od_base TEXT,
+            final_near_os_prism TEXT,
+            final_near_os_base TEXT,
             final_deg_distance TEXT,
             bvp TEXT,
             pinhole TEXT,
@@ -201,6 +254,7 @@ def init_db():
             binocular_tests TEXT,
             functional_tests TEXT,
             accommodation_tests TEXT,
+            color_vision TEXT,
             uploaded_files TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
@@ -222,6 +276,7 @@ def init_db():
             near_point_convergence_break TEXT,
             near_point_convergence_recovery TEXT,
             near_point_accommodation TEXT,
+            color_vision TEXT,
             other_notes TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
@@ -326,6 +381,11 @@ def init_db():
             scleral_power_os_axis INTEGER,
             scleral_add_os TEXT,
             ortho_k_parameters TEXT,
+            ortho_k_treatment_zone TEXT,
+            ortho_k_reverse_curve TEXT,
+            ortho_k_alignment_curve TEXT,
+            ortho_k_landing_zone TEXT,
+            special_lens_parameters TEXT,
             wearing_schedule TEXT,
             care_solution TEXT,
             follow_up_date DATE,
@@ -664,6 +724,15 @@ def load_css():
     }
     .ophtalcam-btn-small:hover {
         background-color: #2a5298;
+    }
+    .compact-input {
+        font-size: 12px;
+        padding: 2px 5px;
+        height: 30px;
+    }
+    .compact-select {
+        font-size: 12px;
+        padding: 2px 5px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -1058,14 +1127,12 @@ def view_patient_history():
                             st.write(f"Sphere: {record.get('final_prescribed_od_sphere', 'N/A')}")
                             st.write(f"Cylinder: {record.get('final_prescribed_od_cylinder', 'N/A')}")
                             st.write(f"Axis: {record.get('final_prescribed_od_axis', 'N/A')}")
-                            st.write(f"ADD: {record.get('final_add_od', 'N/A')}")
                         
                         with col2:
                             st.write("**OS:**")
                             st.write(f"Sphere: {record.get('final_prescribed_os_sphere', 'N/A')}")
                             st.write(f"Cylinder: {record.get('final_prescribed_os_cylinder', 'N/A')}")
                             st.write(f"Axis: {record.get('final_prescribed_os_axis', 'N/A')}")
-                            st.write(f"ADD: {record.get('final_add_os', 'N/A')}")
             else:
                 st.info("No refraction records found.")
         
@@ -1404,34 +1471,28 @@ def refraction_examination():
     st.markdown("<div class='exam-section'><h4>Uncorrected Vision</h4></div>", unsafe_allow_html=True)
     
     with st.form("uncorrected_form"):
-        col_uc_headers = st.columns(4)
+        col_uc_headers = st.columns(3)
         with col_uc_headers[0]:
             st.write("**Eye**")
         with col_uc_headers[1]:
             st.write("**VA**")
         with col_uc_headers[2]:
-            st.write("**Mod**")
-        with col_uc_headers[3]:
             st.write("**Binocular**")
         
-        col_uc_od = st.columns(4)
+        col_uc_od = st.columns(3)
         with col_uc_od[0]:
             st.write("**OD**")
         with col_uc_od[1]:
-            uc_od_va = st.text_input("Uncorrected VA OD", placeholder="1.0", key="uc_od_va", label_visibility="collapsed")
+            uc_od_va = st.text_input("Uncorrected VA OD", placeholder="1.0 (-1)", key="uc_od_va", label_visibility="collapsed")
         with col_uc_od[2]:
-            uc_od_mod = st.text_input("Modifier OD", placeholder="-2", key="uc_od_mod", label_visibility="collapsed")
-        with col_uc_od[3]:
-            uc_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0", key="uc_bin_va", label_visibility="collapsed")
+            uc_bin_va = st.text_input("Uncorrected Binocular VA", placeholder="1.0 (-1)", key="uc_bin_va", label_visibility="collapsed")
         
-        col_uc_os = st.columns(4)
+        col_uc_os = st.columns(3)
         with col_uc_os[0]:
             st.write("**OS**")
         with col_uc_os[1]:
-            uc_os_va = st.text_input("Uncorrected VA OS", placeholder="1.0", key="uc_os_va", label_visibility="collapsed")
+            uc_os_va = st.text_input("Uncorrected VA OS", placeholder="1.0 (-1)", key="uc_os_va", label_visibility="collapsed")
         with col_uc_os[2]:
-            uc_os_mod = st.text_input("Modifier OS", placeholder="-2", key="uc_os_mod", label_visibility="collapsed")
-        with col_uc_os[3]:
             # Empty space for alignment
             st.write("")
         
@@ -1439,85 +1500,123 @@ def refraction_examination():
         
         if submit_uncorrected:
             st.session_state.refraction.update({
-                'uncorrected_od_va': uc_od_va, 'uncorrected_od_modifier': uc_od_mod,
-                'uncorrected_os_va': uc_os_va, 'uncorrected_os_modifier': uc_os_mod,
+                'uncorrected_od_va': uc_od_va,
+                'uncorrected_os_va': uc_os_va,
                 'uncorrected_binocular_va': uc_bin_va,
             })
             st.success("Uncorrected vision data saved!")
 
-    # 2) HABITUAL CORRECTION - NAKON UNCORRECTED
+    # 2) HABITUAL CORRECTION - NOVO: ODVOJENE DIOPTRIJE ZA DALJINU I BLIZINU
     st.markdown("<div class='exam-section'><h4>Habitual Correction</h4></div>", unsafe_allow_html=True)
     with st.form("vision_form"):
         habitual_type = st.selectbox("Type of Correction", 
                                    ["None", "Spectacles", "Soft Contact Lenses", "RGP", "Scleral", "Ortho-K", "Other"])
         
-        # COMPACT HORIZONTAL LAYOUT za habitual korekciju
-        st.markdown("**Habitual Correction Parameters**")
-        col_headers = st.columns(9)
-        with col_headers[0]:
+        # HABITUAL DISTANCE CORRECTION
+        st.markdown("**Habitual Distance Correction**")
+        col_dist_headers = st.columns(7)
+        with col_dist_headers[0]:
             st.write("**Eye**")
-        with col_headers[1]:
-            st.write("**Dsph**")
-        with col_headers[2]:
-            st.write("**Dcyl**")
-        with col_headers[3]:
-            st.write("**Ax**")
-        with col_headers[4]:
-            st.write("**Add**")
-        with col_headers[5]:
-            st.write("**Deg**")
-        with col_headers[6]:
-            st.write("**Dist**")
-        with col_headers[7]:
+        with col_dist_headers[1]:
+            st.write("**Sphere**")
+        with col_dist_headers[2]:
+            st.write("**Cylinder**")
+        with col_dist_headers[3]:
+            st.write("**Axis**")
+        with col_dist_headers[4]:
+            st.write("**Prism**")
+        with col_dist_headers[5]:
+            st.write("**Base**")
+        with col_dist_headers[6]:
             st.write("**VA**")
-        with col_headers[8]:
-            st.write("**Mod**")
         
-        col_od = st.columns(9)
-        with col_od[0]:
+        col_dist_od = st.columns(7)
+        with col_dist_od[0]:
             st.write("**OD**")
-        with col_od[1]:
-            h_od_dsph = st.text_input("Dsph OD", placeholder="-2.00", key="h_od_dsph", label_visibility="collapsed")
-        with col_od[2]:
-            h_od_dcyl = st.text_input("Dcyl OD", placeholder="-0.50", key="h_od_dcyl", label_visibility="collapsed")
-        with col_od[3]:
-            h_od_ax = st.text_input("Ax OD", placeholder="180", key="h_od_ax", label_visibility="collapsed")
-        with col_od[4]:
-            h_od_add = st.text_input("Add OD", placeholder="+1.50", key="h_od_add", label_visibility="collapsed")
-        with col_od[5]:
-            h_od_deg = st.text_input("Deg OD", placeholder="2.00", key="h_od_deg", label_visibility="collapsed")
-        with col_od[6]:
-            h_od_dist = st.text_input("Dist OD", placeholder="6m", key="h_od_dist", label_visibility="collapsed")
-        with col_od[7]:
-            h_od_va = st.text_input("VA OD", placeholder="1.0", key="h_od_va", label_visibility="collapsed")
-        with col_od[8]:
-            h_od_mod = st.text_input("Mod OD", placeholder="-2", key="h_od_mod", label_visibility="collapsed")
-        
-        col_os = st.columns(9)
-        with col_os[0]:
+        with col_dist_od[1]:
+            h_dist_od_sph = st.number_input("Sphere OD Dist", value=0.0, step=0.25, format="%.2f", key="h_dist_od_sph", label_visibility="collapsed")
+        with col_dist_od[2]:
+            h_dist_od_cyl = st.number_input("Cylinder OD Dist", value=0.0, step=0.25, format="%.2f", key="h_dist_od_cyl", label_visibility="collapsed")
+        with col_dist_od[3]:
+            h_dist_od_axis = st.number_input("Axis OD Dist", min_value=0, max_value=180, value=0, key="h_dist_od_axis", label_visibility="collapsed")
+        with col_dist_od[4]:
+            h_dist_od_prism = st.text_input("Prism OD Dist", placeholder="e.g., 2", key="h_dist_od_prism", label_visibility="collapsed")
+        with col_dist_od[5]:
+            h_dist_od_base = st.selectbox("Base OD Dist", ["", "BU", "BD", "BI", "BO"], key="h_dist_od_base", label_visibility="collapsed")
+        with col_dist_od[6]:
+            h_dist_od_va = st.text_input("VA OD Dist", placeholder="1.0 (-1)", key="h_dist_od_va", label_visibility="collapsed")
+            
+        col_dist_os = st.columns(7)
+        with col_dist_os[0]:
             st.write("**OS**")
-        with col_os[1]:
-            h_os_dsph = st.text_input("Dsph OS", placeholder="-2.00", key="h_os_dsph", label_visibility="collapsed")
-        with col_os[2]:
-            h_os_dcyl = st.text_input("Dcyl OS", placeholder="-0.50", key="h_os_dcyl", label_visibility="collapsed")
-        with col_os[3]:
-            h_os_ax = st.text_input("Ax OS", placeholder="180", key="h_os_ax", label_visibility="collapsed")
-        with col_os[4]:
-            h_os_add = st.text_input("Add OS", placeholder="+1.50", key="h_os_add", label_visibility="collapsed")
-        with col_os[5]:
-            h_os_deg = st.text_input("Deg OS", placeholder="2.00", key="h_os_deg", label_visibility="collapsed")
-        with col_os[6]:
-            h_os_dist = st.text_input("Dist OS", placeholder="6m", key="h_os_dist", label_visibility="collapsed")
-        with col_os[7]:
-            h_os_va = st.text_input("VA OS", placeholder="1.0", key="h_os_va", label_visibility="collapsed")
-        with col_os[8]:
-            h_os_mod = st.text_input("Mod OS", placeholder="-2", key="h_os_mod", label_visibility="collapsed")
+        with col_dist_os[1]:
+            h_dist_os_sph = st.number_input("Sphere OS Dist", value=0.0, step=0.25, format="%.2f", key="h_dist_os_sph", label_visibility="collapsed")
+        with col_dist_os[2]:
+            h_dist_os_cyl = st.number_input("Cylinder OS Dist", value=0.0, step=0.25, format="%.2f", key="h_dist_os_cyl", label_visibility="collapsed")
+        with col_dist_os[3]:
+            h_dist_os_axis = st.number_input("Axis OS Dist", min_value=0, max_value=180, value=0, key="h_dist_os_axis", label_visibility="collapsed")
+        with col_dist_os[4]:
+            h_dist_os_prism = st.text_input("Prism OS Dist", placeholder="e.g., 2", key="h_dist_os_prism", label_visibility="collapsed")
+        with col_dist_os[5]:
+            h_dist_os_base = st.selectbox("Base OS Dist", ["", "BU", "BD", "BI", "BO"], key="h_dist_os_base", label_visibility="collapsed")
+        with col_dist_os[6]:
+            h_dist_os_va = st.text_input("VA OS Dist", placeholder="1.0 (-1)", key="h_dist_os_va", label_visibility="collapsed")
         
-        # Binocular vision centrirano
+        # HABITUAL NEAR CORRECTION
+        st.markdown("**Habitual Near Correction**")
+        col_near_headers = st.columns(7)
+        with col_near_headers[0]:
+            st.write("**Eye**")
+        with col_near_headers[1]:
+            st.write("**Sphere**")
+        with col_near_headers[2]:
+            st.write("**Cylinder**")
+        with col_near_headers[3]:
+            st.write("**Axis**")
+        with col_near_headers[4]:
+            st.write("**Prism**")
+        with col_near_headers[5]:
+            st.write("**Base**")
+        with col_near_headers[6]:
+            st.write("**VA**")
+        
+        col_near_od = st.columns(7)
+        with col_near_od[0]:
+            st.write("**OD**")
+        with col_near_od[1]:
+            h_near_od_sph = st.number_input("Sphere OD Near", value=0.0, step=0.25, format="%.2f", key="h_near_od_sph", label_visibility="collapsed")
+        with col_near_od[2]:
+            h_near_od_cyl = st.number_input("Cylinder OD Near", value=0.0, step=0.25, format="%.2f", key="h_near_od_cyl", label_visibility="collapsed")
+        with col_near_od[3]:
+            h_near_od_axis = st.number_input("Axis OD Near", min_value=0, max_value=180, value=0, key="h_near_od_axis", label_visibility="collapsed")
+        with col_near_od[4]:
+            h_near_od_prism = st.text_input("Prism OD Near", placeholder="e.g., 2", key="h_near_od_prism", label_visibility="collapsed")
+        with col_near_od[5]:
+            h_near_od_base = st.selectbox("Base OD Near", ["", "BU", "BD", "BI", "BO"], key="h_near_od_base", label_visibility="collapsed")
+        with col_near_od[6]:
+            h_near_od_va = st.text_input("VA OD Near", placeholder="1.0 (-1)", key="h_near_od_va", label_visibility="collapsed")
+            
+        col_near_os = st.columns(7)
+        with col_near_os[0]:
+            st.write("**OS**")
+        with col_near_os[1]:
+            h_near_os_sph = st.number_input("Sphere OS Near", value=0.0, step=0.25, format="%.2f", key="h_near_os_sph", label_visibility="collapsed")
+        with col_near_os[2]:
+            h_near_os_cyl = st.number_input("Cylinder OS Near", value=0.0, step=0.25, format="%.2f", key="h_near_os_cyl", label_visibility="collapsed")
+        with col_near_os[3]:
+            h_near_os_axis = st.number_input("Axis OS Near", min_value=0, max_value=180, value=0, key="h_near_os_axis", label_visibility="collapsed")
+        with col_near_os[4]:
+            h_near_os_prism = st.text_input("Prism OS Near", placeholder="e.g., 2", key="h_near_os_prism", label_visibility="collapsed")
+        with col_near_os[5]:
+            h_near_os_base = st.selectbox("Base OS Near", ["", "BU", "BD", "BI", "BO"], key="h_near_os_base", label_visibility="collapsed")
+        with col_near_os[6]:
+            h_near_os_va = st.text_input("VA OS Near", placeholder="1.0 (-1)", key="h_near_os_va", label_visibility="collapsed")
+        
+        # Binocular vision
         st.markdown("**Binocular Vision**")
         col_bin = st.columns(2)
         with col_bin[0]:
-            h_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 or 20/20", key="h_bin_va")
+            h_bin_va = st.text_input("Habitual Binocular VA", placeholder="1.0 (-1)", key="h_bin_va")
         with col_bin[1]:
             h_pd = st.text_input("PD (mm)", placeholder="e.g., 62", key="h_pd")
         
@@ -1528,11 +1627,30 @@ def refraction_examination():
         if submit_vision:
             st.session_state.refraction.update({
                 'habitual_type': habitual_type,
-                'habitual_od_va': h_od_va, 'habitual_od_modifier': h_od_mod,
-                'habitual_os_va': h_os_va, 'habitual_os_modifier': h_os_mod,
-                'habitual_binocular_va': h_bin_va, 'habitual_pd': h_pd,
-                'habitual_add_od': h_od_add, 'habitual_add_os': h_os_add,
-                'habitual_deg_od': h_od_deg, 'habitual_deg_os': h_os_deg,
+                'habitual_od_va': h_dist_od_va,
+                'habitual_os_va': h_dist_os_va,
+                'habitual_binocular_va': h_bin_va,
+                'habitual_pd': h_pd,
+                'habitual_distance_od_sphere': h_dist_od_sph,
+                'habitual_distance_od_cylinder': h_dist_od_cyl,
+                'habitual_distance_od_axis': h_dist_od_axis,
+                'habitual_distance_od_prism': h_dist_od_prism,
+                'habitual_distance_od_base': h_dist_od_base,
+                'habitual_distance_os_sphere': h_dist_os_sph,
+                'habitual_distance_os_cylinder': h_dist_os_cyl,
+                'habitual_distance_os_axis': h_dist_os_axis,
+                'habitual_distance_os_prism': h_dist_os_prism,
+                'habitual_distance_os_base': h_dist_os_base,
+                'habitual_near_od_sphere': h_near_od_sph,
+                'habitual_near_od_cylinder': h_near_od_cyl,
+                'habitual_near_od_axis': h_near_od_axis,
+                'habitual_near_od_prism': h_near_od_prism,
+                'habitual_near_od_base': h_near_od_base,
+                'habitual_near_os_sphere': h_near_os_sph,
+                'habitual_near_os_cylinder': h_near_os_cyl,
+                'habitual_near_os_axis': h_near_os_axis,
+                'habitual_near_os_prism': h_near_os_prism,
+                'habitual_near_os_base': h_near_os_base,
                 'vision_notes': vision_notes
             })
             st.success("Vision data saved!")
@@ -1547,7 +1665,7 @@ def refraction_examination():
         with col_method_time[1]:
             objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
         
-        # Cycloplegic options
+        # Cycloplegic options - ISPRAVLJENO: Objective Refraction s cycloplegic opcijom
         st.markdown("#### Cycloplegic Refraction")
         col_cyclo1, col_cyclo2 = st.columns(2)
         with col_cyclo1:
@@ -1562,7 +1680,7 @@ def refraction_examination():
         
         # COMPACT HORIZONTAL LAYOUT za objektivnu refrakciju
         st.markdown("**Objective Refraction Parameters**")
-        col_obj_headers = st.columns(6)
+        col_obj_headers = st.columns(5)
         with col_obj_headers[0]:
             st.write("**Eye**")
         with col_obj_headers[1]:
@@ -1573,10 +1691,8 @@ def refraction_examination():
             st.write("**Axis**")
         with col_obj_headers[4]:
             st.write("**VA**")
-        with col_obj_headers[5]:
-            st.write("**Mod**")
         
-        col_obj_od = st.columns(6)
+        col_obj_od = st.columns(5)
         with col_obj_od[0]:
             st.write("**OD**")
         with col_obj_od[1]:
@@ -1586,11 +1702,9 @@ def refraction_examination():
         with col_obj_od[3]:
             obj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="obj_od_axis", label_visibility="collapsed")
         with col_obj_od[4]:
-            obj_od_va = st.text_input("VA OD", placeholder="1.0", key="obj_od_va", label_visibility="collapsed")
-        with col_obj_od[5]:
-            obj_od_mod = st.text_input("Mod OD", placeholder="-2", key="obj_od_mod", label_visibility="collapsed")
+            obj_od_va = st.text_input("VA OD", placeholder="1.0 (-1)", key="obj_od_va", label_visibility="collapsed")
             
-        col_obj_os = st.columns(6)
+        col_obj_os = st.columns(5)
         with col_obj_os[0]:
             st.write("**OS**")
         with col_obj_os[1]:
@@ -1600,9 +1714,7 @@ def refraction_examination():
         with col_obj_os[3]:
             obj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="obj_os_axis", label_visibility="collapsed")
         with col_obj_os[4]:
-            obj_os_va = st.text_input("VA OS", placeholder="1.0", key="obj_os_va", label_visibility="collapsed")
-        with col_obj_os[5]:
-            obj_os_mod = st.text_input("Mod OS", placeholder="-2", key="obj_os_mod", label_visibility="collapsed")
+            obj_os_va = st.text_input("VA OS", placeholder="1.0 (-1)", key="obj_os_va", label_visibility="collapsed")
             
         objective_notes = st.text_area("Objective Notes", height=60, key="obj_notes")
         
@@ -1623,14 +1735,14 @@ def refraction_examination():
             })
             st.success("Objective data saved!")
 
-    # 4) Subjective Refraction WITH ADD/DEG
-    st.markdown("<div class='exam-section'><h4>Subjective Refraction</h4></div>", unsafe_allow_html=True)
+    # 4) Subjective Monocular Refraction - ISPRAVLJENO: Bez digresija
+    st.markdown("<div class='exam-section'><h4>Subjective Monocular Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("subjective_form"):
         subj_method = st.selectbox("Subjective Method", ["Fogging", "With Cycloplegic", "Other"], key="subj_method")
         
-        # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju
-        st.markdown("**Subjective Refraction Parameters**")
-        col_subj_headers = st.columns(8)
+        # COMPACT HORIZONTAL LAYOUT za subjektivnu monokularnu refrakciju
+        st.markdown("**Subjective Monocular Refraction Parameters**")
+        col_subj_headers = st.columns(5)
         with col_subj_headers[0]:
             st.write("**Eye**")
         with col_subj_headers[1]:
@@ -1640,15 +1752,9 @@ def refraction_examination():
         with col_subj_headers[3]:
             st.write("**Axis**")
         with col_subj_headers[4]:
-            st.write("**Add**")
-        with col_subj_headers[5]:
-            st.write("**Deg**")
-        with col_subj_headers[6]:
             st.write("**VA**")
-        with col_subj_headers[7]:
-            st.write("**Mod**")
         
-        col_subj_od = st.columns(8)
+        col_subj_od = st.columns(5)
         with col_subj_od[0]:
             st.write("**OD**")
         with col_subj_od[1]:
@@ -1658,15 +1764,9 @@ def refraction_examination():
         with col_subj_od[3]:
             subj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_axis", label_visibility="collapsed")
         with col_subj_od[4]:
-            subj_od_add = st.text_input("ADD OD", placeholder="+1.50", key="subj_od_add", label_visibility="collapsed")
-        with col_subj_od[5]:
-            subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
-        with col_subj_od[6]:
-            subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
-        with col_subj_od[7]:
-            subj_od_mod = st.text_input("Mod OD", placeholder="-2", key="subj_od_mod", label_visibility="collapsed")
+            subj_od_va = st.text_input("VA OD", placeholder="1.0 (-1)", key="subj_od_va", label_visibility="collapsed")
             
-        col_subj_os = st.columns(8)
+        col_subj_os = st.columns(5)
         with col_subj_os[0]:
             st.write("**OS**")
         with col_subj_os[1]:
@@ -1676,20 +1776,7 @@ def refraction_examination():
         with col_subj_os[3]:
             subj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_axis", label_visibility="collapsed")
         with col_subj_os[4]:
-            subj_os_add = st.text_input("ADD OS", placeholder="+1.50", key="subj_os_add", label_visibility="collapsed")
-        with col_subj_os[5]:
-            subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
-        with col_subj_os[6]:
-            subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
-        with col_subj_os[7]:
-            subj_os_mod = st.text_input("Mod OS", placeholder="-2", key="subj_os_mod", label_visibility="collapsed")
-        
-        # Distance s DEG Distance
-        col_distance = st.columns(2)
-        with col_distance[0]:
-            subjective_distance = st.text_input("Distance", placeholder="e.g., 6m", key="subj_distance")
-        with col_distance[1]:
-            subjective_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="subj_deg_distance")
+            subj_os_va = st.text_input("VA OS", placeholder="1.0 (-1)", key="subj_os_va", label_visibility="collapsed")
         
         subjective_notes = st.text_area("Subjective Notes", height=60, key="subj_notes")
         
@@ -1699,21 +1786,153 @@ def refraction_examination():
             st.session_state.refraction.update({
                 'subjective_method': subj_method,
                 'subjective_od_sphere': subj_od_sph, 'subjective_od_cylinder': subj_od_cyl, 'subjective_od_axis': subj_od_axis,
-                'subjective_od_va': subj_od_va, 'subjective_add_od': subj_od_add, 'subjective_deg_od': subj_od_deg,
+                'subjective_od_va': subj_od_va,
                 'subjective_os_sphere': subj_os_sph, 'subjective_os_cylinder': subj_os_cyl, 'subjective_os_axis': subj_os_axis,
-                'subjective_os_va': subj_os_va, 'subjective_add_os': subj_os_add, 'subjective_deg_os': subj_os_deg,
-                'subjective_distance': subjective_distance,
-                'subjective_deg_distance': subjective_deg_distance,
+                'subjective_os_va': subj_os_va,
                 'subjective_notes': subjective_notes
             })
             st.success("Subjective data saved!")
 
-    # 5) Final Prescription WITH ADD/DEG
+    # 5) Subjective Binocular Refraction - NOVO DODANO
+    st.markdown("<div class='exam-section'><h4>Subjective Binocular Refraction</h4></div>", unsafe_allow_html=True)
+    with st.form("subjective_binocular_form"):
+        
+        # SUBJECTIVE BINOCULAR DISTANCE CORRECTION
+        st.markdown("**Subjective Binocular Distance Correction**")
+        col_bin_dist_headers = st.columns(7)
+        with col_bin_dist_headers[0]:
+            st.write("**Eye**")
+        with col_bin_dist_headers[1]:
+            st.write("**Sphere**")
+        with col_bin_dist_headers[2]:
+            st.write("**Cylinder**")
+        with col_bin_dist_headers[3]:
+            st.write("**Axis**")
+        with col_bin_dist_headers[4]:
+            st.write("**Prism**")
+        with col_bin_dist_headers[5]:
+            st.write("**Base**")
+        with col_bin_dist_headers[6]:
+            st.write("**VA**")
+        
+        col_bin_dist_od = st.columns(7)
+        with col_bin_dist_od[0]:
+            st.write("**OD**")
+        with col_bin_dist_od[1]:
+            bin_dist_od_sph = st.number_input("Sphere OD Bin Dist", value=0.0, step=0.25, format="%.2f", key="bin_dist_od_sph", label_visibility="collapsed")
+        with col_bin_dist_od[2]:
+            bin_dist_od_cyl = st.number_input("Cylinder OD Bin Dist", value=0.0, step=0.25, format="%.2f", key="bin_dist_od_cyl", label_visibility="collapsed")
+        with col_bin_dist_od[3]:
+            bin_dist_od_axis = st.number_input("Axis OD Bin Dist", min_value=0, max_value=180, value=0, key="bin_dist_od_axis", label_visibility="collapsed")
+        with col_bin_dist_od[4]:
+            bin_dist_od_prism = st.text_input("Prism OD Bin Dist", placeholder="e.g., 2", key="bin_dist_od_prism", label_visibility="collapsed")
+        with col_bin_dist_od[5]:
+            bin_dist_od_base = st.selectbox("Base OD Bin Dist", ["", "BU", "BD", "BI", "BO"], key="bin_dist_od_base", label_visibility="collapsed")
+        with col_bin_dist_od[6]:
+            bin_dist_od_va = st.text_input("VA OD Bin Dist", placeholder="1.0 (-1)", key="bin_dist_od_va", label_visibility="collapsed")
+            
+        col_bin_dist_os = st.columns(7)
+        with col_bin_dist_os[0]:
+            st.write("**OS**")
+        with col_bin_dist_os[1]:
+            bin_dist_os_sph = st.number_input("Sphere OS Bin Dist", value=0.0, step=0.25, format="%.2f", key="bin_dist_os_sph", label_visibility="collapsed")
+        with col_bin_dist_os[2]:
+            bin_dist_os_cyl = st.number_input("Cylinder OS Bin Dist", value=0.0, step=0.25, format="%.2f", key="bin_dist_os_cyl", label_visibility="collapsed")
+        with col_bin_dist_os[3]:
+            bin_dist_os_axis = st.number_input("Axis OS Bin Dist", min_value=0, max_value=180, value=0, key="bin_dist_os_axis", label_visibility="collapsed")
+        with col_bin_dist_os[4]:
+            bin_dist_os_prism = st.text_input("Prism OS Bin Dist", placeholder="e.g., 2", key="bin_dist_os_prism", label_visibility="collapsed")
+        with col_bin_dist_os[5]:
+            bin_dist_os_base = st.selectbox("Base OS Bin Dist", ["", "BU", "BD", "BI", "BO"], key="bin_dist_os_base", label_visibility="collapsed")
+        with col_bin_dist_os[6]:
+            bin_dist_os_va = st.text_input("VA OS Bin Dist", placeholder="1.0 (-1)", key="bin_dist_os_va", label_visibility="collapsed")
+        
+        # SUBJECTIVE BINOCULAR NEAR CORRECTION
+        st.markdown("**Subjective Binocular Near Correction**")
+        col_bin_near_headers = st.columns(7)
+        with col_bin_near_headers[0]:
+            st.write("**Eye**")
+        with col_bin_near_headers[1]:
+            st.write("**Sphere**")
+        with col_bin_near_headers[2]:
+            st.write("**Cylinder**")
+        with col_bin_near_headers[3]:
+            st.write("**Axis**")
+        with col_bin_near_headers[4]:
+            st.write("**Prism**")
+        with col_bin_near_headers[5]:
+            st.write("**Base**")
+        with col_bin_near_headers[6]:
+            st.write("**VA**")
+        
+        col_bin_near_od = st.columns(7)
+        with col_bin_near_od[0]:
+            st.write("**OD**")
+        with col_bin_near_od[1]:
+            bin_near_od_sph = st.number_input("Sphere OD Bin Near", value=0.0, step=0.25, format="%.2f", key="bin_near_od_sph", label_visibility="collapsed")
+        with col_bin_near_od[2]:
+            bin_near_od_cyl = st.number_input("Cylinder OD Bin Near", value=0.0, step=0.25, format="%.2f", key="bin_near_od_cyl", label_visibility="collapsed")
+        with col_bin_near_od[3]:
+            bin_near_od_axis = st.number_input("Axis OD Bin Near", min_value=0, max_value=180, value=0, key="bin_near_od_axis", label_visibility="collapsed")
+        with col_bin_near_od[4]:
+            bin_near_od_prism = st.text_input("Prism OD Bin Near", placeholder="e.g., 2", key="bin_near_od_prism", label_visibility="collapsed")
+        with col_bin_near_od[5]:
+            bin_near_od_base = st.selectbox("Base OD Bin Near", ["", "BU", "BD", "BI", "BO"], key="bin_near_od_base", label_visibility="collapsed")
+        with col_bin_near_od[6]:
+            bin_near_od_va = st.text_input("VA OD Bin Near", placeholder="1.0 (-1)", key="bin_near_od_va", label_visibility="collapsed")
+            
+        col_bin_near_os = st.columns(7)
+        with col_bin_near_os[0]:
+            st.write("**OS**")
+        with col_bin_near_os[1]:
+            bin_near_os_sph = st.number_input("Sphere OS Bin Near", value=0.0, step=0.25, format="%.2f", key="bin_near_os_sph", label_visibility="collapsed")
+        with col_bin_near_os[2]:
+            bin_near_os_cyl = st.number_input("Cylinder OS Bin Near", value=0.0, step=0.25, format="%.2f", key="bin_near_os_cyl", label_visibility="collapsed")
+        with col_bin_near_os[3]:
+            bin_near_os_axis = st.number_input("Axis OS Bin Near", min_value=0, max_value=180, value=0, key="bin_near_os_axis", label_visibility="collapsed")
+        with col_bin_near_os[4]:
+            bin_near_os_prism = st.text_input("Prism OS Bin Near", placeholder="e.g., 2", key="bin_near_os_prism", label_visibility="collapsed")
+        with col_bin_near_os[5]:
+            bin_near_os_base = st.selectbox("Base OS Bin Near", ["", "BU", "BD", "BI", "BO"], key="bin_near_os_base", label_visibility="collapsed")
+        with col_bin_near_os[6]:
+            bin_near_os_va = st.text_input("VA OS Bin Near", placeholder="1.0 (-1)", key="bin_near_os_va", label_visibility="collapsed")
+        
+        subjective_binocular_notes = st.text_area("Subjective Binocular Notes", height=60, key="subj_bin_notes")
+        
+        submit_subjective_binocular = st.form_submit_button("Save Subjective Binocular Data", use_container_width=True)
+        
+        if submit_subjective_binocular:
+            st.session_state.refraction.update({
+                'subjective_binocular_distance_od_sphere': bin_dist_od_sph,
+                'subjective_binocular_distance_od_cylinder': bin_dist_od_cyl,
+                'subjective_binocular_distance_od_axis': bin_dist_od_axis,
+                'subjective_binocular_distance_od_prism': bin_dist_od_prism,
+                'subjective_binocular_distance_od_base': bin_dist_od_base,
+                'subjective_binocular_distance_os_sphere': bin_dist_os_sph,
+                'subjective_binocular_distance_os_cylinder': bin_dist_os_cyl,
+                'subjective_binocular_distance_os_axis': bin_dist_os_axis,
+                'subjective_binocular_distance_os_prism': bin_dist_os_prism,
+                'subjective_binocular_distance_os_base': bin_dist_os_base,
+                'subjective_binocular_near_od_sphere': bin_near_od_sph,
+                'subjective_binocular_near_od_cylinder': bin_near_od_cyl,
+                'subjective_binocular_near_od_axis': bin_near_od_axis,
+                'subjective_binocular_near_od_prism': bin_near_od_prism,
+                'subjective_binocular_near_od_base': bin_near_od_base,
+                'subjective_binocular_near_os_sphere': bin_near_os_sph,
+                'subjective_binocular_near_os_cylinder': bin_near_os_cyl,
+                'subjective_binocular_near_os_axis': bin_near_os_axis,
+                'subjective_binocular_near_os_prism': bin_near_os_prism,
+                'subjective_binocular_near_os_base': bin_near_os_base,
+                'subjective_binocular_notes': subjective_binocular_notes
+            })
+            st.success("Subjective binocular data saved!")
+
+    # 6) Final Prescription WITH PRISM AND BASE
     st.markdown("<div class='exam-section'><h4>Final Prescription</h4></div>", unsafe_allow_html=True)
     with st.form("final_form"):
         # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
         st.markdown("**Final Prescription Parameters**")
-        col_final_headers = st.columns(9)
+        col_final_headers = st.columns(8)
         with col_final_headers[0]:
             st.write("**Eye**")
         with col_final_headers[1]:
@@ -1723,17 +1942,15 @@ def refraction_examination():
         with col_final_headers[3]:
             st.write("**Axis**")
         with col_final_headers[4]:
-            st.write("**Add**")
+            st.write("**Prism**")
         with col_final_headers[5]:
-            st.write("**Deg**")
+            st.write("**Base**")
         with col_final_headers[6]:
-            st.write("**Dist**")
-        with col_final_headers[7]:
             st.write("**VA**")
-        with col_final_headers[8]:
-            st.write("**Mod**")
+        with col_final_headers[7]:
+            st.write("**BVP**")
         
-        col_final_od = st.columns(9)
+        col_final_od = st.columns(8)
         with col_final_od[0]:
             st.write("**OD**")
         with col_final_od[1]:
@@ -1743,17 +1960,15 @@ def refraction_examination():
         with col_final_od[3]:
             final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis", label_visibility="collapsed")
         with col_final_od[4]:
-            final_add_od = st.text_input("Final ADD OD", placeholder="+1.50", key="final_add_od", label_visibility="collapsed")
+            final_dist_od_prism = st.text_input("Prism OD Dist", placeholder="e.g., 2", key="final_dist_od_prism", label_visibility="collapsed")
         with col_final_od[5]:
-            final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
+            final_dist_od_base = st.selectbox("Base OD Dist", ["", "BU", "BD", "BI", "BO"], key="final_dist_od_base", label_visibility="collapsed")
         with col_final_od[6]:
-            final_od_dist = st.text_input("Dist OD", placeholder="6m", key="final_od_dist", label_visibility="collapsed")
+            final_od_va = st.text_input("VA OD", placeholder="1.0 (-1)", key="final_od_va", label_visibility="collapsed")
         with col_final_od[7]:
-            final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
-        with col_final_od[8]:
-            final_od_mod = st.text_input("Mod OD", placeholder="-2", key="final_od_mod", label_visibility="collapsed")
+            final_od_bvp = st.text_input("BVP OD", placeholder="e.g., 12.5", key="final_od_bvp", label_visibility="collapsed")
             
-        col_final_os = st.columns(9)
+        col_final_os = st.columns(8)
         with col_final_os[0]:
             st.write("**OS**")
         with col_final_os[1]:
@@ -1763,24 +1978,53 @@ def refraction_examination():
         with col_final_os[3]:
             final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis", label_visibility="collapsed")
         with col_final_os[4]:
-            final_add_os = st.text_input("Final ADD OS", placeholder="+1.50", key="final_add_os", label_visibility="collapsed")
+            final_dist_os_prism = st.text_input("Prism OS Dist", placeholder="e.g., 2", key="final_dist_os_prism", label_visibility="collapsed")
         with col_final_os[5]:
-            final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
+            final_dist_os_base = st.selectbox("Base OS Dist", ["", "BU", "BD", "BI", "BO"], key="final_dist_os_base", label_visibility="collapsed")
         with col_final_os[6]:
-            final_os_dist = st.text_input("Dist OS", placeholder="6m", key="final_os_dist", label_visibility="collapsed")
+            final_os_va = st.text_input("VA OS", placeholder="1.0 (-1)", key="final_os_va", label_visibility="collapsed")
         with col_final_os[7]:
-            final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
-        with col_final_os[8]:
-            final_os_mod = st.text_input("Mod OS", placeholder="-2", key="final_os_mod", label_visibility="collapsed")
+            final_os_bvp = st.text_input("BVP OS", placeholder="e.g., 12.5", key="final_os_bvp", label_visibility="collapsed")
+        
+        # Final Near Correction with Prism and Base
+        st.markdown("**Final Near Correction**")
+        col_final_near_headers = st.columns(6)
+        with col_final_near_headers[0]:
+            st.write("**Eye**")
+        with col_final_near_headers[1]:
+            st.write("**Prism**")
+        with col_final_near_headers[2]:
+            st.write("**Base**")
+        with col_final_near_headers[3]:
+            st.write("**Eye**")
+        with col_final_near_headers[4]:
+            st.write("**Prism**")
+        with col_final_near_headers[5]:
+            st.write("**Base**")
+        
+        col_final_near = st.columns(6)
+        with col_final_near[0]:
+            st.write("**OD**")
+        with col_final_near[1]:
+            final_near_od_prism = st.text_input("Prism OD Near", placeholder="e.g., 2", key="final_near_od_prism", label_visibility="collapsed")
+        with col_final_near[2]:
+            final_near_od_base = st.selectbox("Base OD Near", ["", "BU", "BD", "BI", "BO"], key="final_near_od_base", label_visibility="collapsed")
+        with col_final_near[3]:
+            st.write("**OS**")
+        with col_final_near[4]:
+            final_near_os_prism = st.text_input("Prism OS Near", placeholder="e.g., 2", key="final_near_os_prism", label_visibility="collapsed")
+        with col_final_near[5]:
+            final_near_os_base = st.selectbox("Base OS Near", ["", "BU", "BD", "BI", "BO"], key="final_near_os_base", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
         with col_bin1:
             binocular_balance = st.selectbox("Binocular Balance", ["Balanced", "OD dominant", "OS dominant", "Unbalanced"], key="bin_balance")
             stereopsis = st.text_input("Stereoacuity", placeholder="e.g., 40 arcsec", key="stereopsis")
-            final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 or 20/20", key="final_bin_va")
+            final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 (-1)", key="final_bin_va")
             
         with col_bin2:
             final_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="final_deg_distance")
+            bvp = st.text_input("BVP", placeholder="e.g., 12.5", key="bvp")
             prescription_notes = st.text_area("Prescription Notes", height=80, key="presc_notes")
         
         submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
@@ -1791,48 +2035,124 @@ def refraction_examination():
                 pid = p['id']
                 
                 c = conn.cursor()
-                # ISPRAVLJEN SQL UPIT - točan broj parametara
+                # ISPRAVLJEN SQL UPIT - sada ima točan broj parametara
                 c.execute('''
                     INSERT INTO refraction_exams (
-                        patient_id, habitual_type, habitual_od_va, habitual_od_modifier, habitual_os_va, habitual_os_modifier,
-                        habitual_binocular_va, habitual_pd, habitual_add_od, habitual_add_os, habitual_deg_od, habitual_deg_os,
-                        vision_notes, uncorrected_od_va, uncorrected_od_modifier, uncorrected_os_va, uncorrected_os_modifier, uncorrected_binocular_va,
+                        patient_id, habitual_type, habitual_od_va, habitual_os_va,
+                        habitual_binocular_va, habitual_pd, vision_notes,
+                        habitual_distance_od_sphere, habitual_distance_od_cylinder, habitual_distance_od_axis,
+                        habitual_distance_od_prism, habitual_distance_od_base,
+                        habitual_distance_os_sphere, habitual_distance_os_cylinder, habitual_distance_os_axis,
+                        habitual_distance_os_prism, habitual_distance_os_base,
+                        habitual_near_od_sphere, habitual_near_od_cylinder, habitual_near_od_axis,
+                        habitual_near_od_prism, habitual_near_od_base,
+                        habitual_near_os_sphere, habitual_near_os_cylinder, habitual_near_os_axis,
+                        habitual_near_os_prism, habitual_near_os_base,
+                        uncorrected_od_va, uncorrected_os_va, uncorrected_binocular_va,
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
                         cycloplegic_used, cycloplegic_agent, cycloplegic_lot, cycloplegic_expiry, cycloplegic_drops,
-                        subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_od_modifier, subjective_add_od, subjective_deg_od,
-                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_os_modifier, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
+                        subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va,
+                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_notes,
+                        subjective_binocular_distance_od_sphere, subjective_binocular_distance_od_cylinder, subjective_binocular_distance_od_axis,
+                        subjective_binocular_distance_od_prism, subjective_binocular_distance_od_base,
+                        subjective_binocular_distance_os_sphere, subjective_binocular_distance_os_cylinder, subjective_binocular_distance_os_axis,
+                        subjective_binocular_distance_os_prism, subjective_binocular_distance_os_base,
+                        subjective_binocular_near_od_sphere, subjective_binocular_near_od_cylinder, subjective_binocular_near_od_axis,
+                        subjective_binocular_near_od_prism, subjective_binocular_near_od_base,
+                        subjective_binocular_near_os_sphere, subjective_binocular_near_os_cylinder, subjective_binocular_near_os_axis,
+                        subjective_binocular_near_os_prism, subjective_binocular_near_os_base,
+                        subjective_binocular_notes,
                         binocular_balance, stereopsis,
-                        final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
-                        final_prescribed_binocular_va, final_prescribed_binocular_modifier, final_add_od, final_add_os, final_deg_od, final_deg_os, final_deg_distance, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis,
+                        final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
+                        final_prescribed_binocular_va,
+                        final_distance_od_prism, final_distance_od_base, final_distance_os_prism, final_distance_os_base,
+                        final_near_od_prism, final_near_od_base, final_near_os_prism, final_near_os_base,
+                        final_deg_distance, bvp, prescription_notes
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, 
                     st.session_state.refraction.get('habitual_type'),
-                    st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
-                    st.session_state.refraction.get('habitual_os_va'), st.session_state.refraction.get('habitual_os_modifier'),
-                    st.session_state.refraction.get('habitual_binocular_va'), st.session_state.refraction.get('habitual_pd'),
-                    st.session_state.refraction.get('habitual_add_od'), st.session_state.refraction.get('habitual_add_os'),
-                    st.session_state.refraction.get('habitual_deg_od'), st.session_state.refraction.get('habitual_deg_os'),
+                    st.session_state.refraction.get('habitual_od_va'),
+                    st.session_state.refraction.get('habitual_os_va'),
+                    st.session_state.refraction.get('habitual_binocular_va'), 
+                    st.session_state.refraction.get('habitual_pd'),
                     st.session_state.refraction.get('vision_notes'),
-                    st.session_state.refraction.get('uncorrected_od_va'), st.session_state.refraction.get('uncorrected_od_modifier'),
-                    st.session_state.refraction.get('uncorrected_os_va'), st.session_state.refraction.get('uncorrected_os_modifier'),
+                    st.session_state.refraction.get('habitual_distance_od_sphere'),
+                    st.session_state.refraction.get('habitual_distance_od_cylinder'),
+                    st.session_state.refraction.get('habitual_distance_od_axis'),
+                    st.session_state.refraction.get('habitual_distance_od_prism'),
+                    st.session_state.refraction.get('habitual_distance_od_base'),
+                    st.session_state.refraction.get('habitual_distance_os_sphere'),
+                    st.session_state.refraction.get('habitual_distance_os_cylinder'),
+                    st.session_state.refraction.get('habitual_distance_os_axis'),
+                    st.session_state.refraction.get('habitual_distance_os_prism'),
+                    st.session_state.refraction.get('habitual_distance_os_base'),
+                    st.session_state.refraction.get('habitual_near_od_sphere'),
+                    st.session_state.refraction.get('habitual_near_od_cylinder'),
+                    st.session_state.refraction.get('habitual_near_od_axis'),
+                    st.session_state.refraction.get('habitual_near_od_prism'),
+                    st.session_state.refraction.get('habitual_near_od_base'),
+                    st.session_state.refraction.get('habitual_near_os_sphere'),
+                    st.session_state.refraction.get('habitual_near_os_cylinder'),
+                    st.session_state.refraction.get('habitual_near_os_axis'),
+                    st.session_state.refraction.get('habitual_near_os_prism'),
+                    st.session_state.refraction.get('habitual_near_os_base'),
+                    st.session_state.refraction.get('uncorrected_od_va'),
+                    st.session_state.refraction.get('uncorrected_os_va'),
                     st.session_state.refraction.get('uncorrected_binocular_va'),
-                    st.session_state.refraction.get('objective_method'), st.session_state.refraction.get('objective_time'),
-                    st.session_state.refraction.get('autorefractor_od_sphere'), st.session_state.refraction.get('autorefractor_od_cylinder'), st.session_state.refraction.get('autorefractor_od_axis'),
-                    st.session_state.refraction.get('autorefractor_os_sphere'), st.session_state.refraction.get('autorefractor_os_cylinder'), st.session_state.refraction.get('autorefractor_os_axis'),
+                    st.session_state.refraction.get('objective_method'), 
+                    st.session_state.refraction.get('objective_time'),
+                    st.session_state.refraction.get('autorefractor_od_sphere'), 
+                    st.session_state.refraction.get('autorefractor_od_cylinder'), 
+                    st.session_state.refraction.get('autorefractor_od_axis'),
+                    st.session_state.refraction.get('autorefractor_os_sphere'), 
+                    st.session_state.refraction.get('autorefractor_os_cylinder'), 
+                    st.session_state.refraction.get('autorefractor_os_axis'),
                     st.session_state.refraction.get('objective_notes'),
-                    st.session_state.refraction.get('cycloplegic_used'), st.session_state.refraction.get('cycloplegic_agent'),
-                    st.session_state.refraction.get('cycloplegic_lot'), st.session_state.refraction.get('cycloplegic_expiry'), st.session_state.refraction.get('cycloplegic_drops'),
+                    st.session_state.refraction.get('cycloplegic_used'), 
+                    st.session_state.refraction.get('cycloplegic_agent'),
+                    st.session_state.refraction.get('cycloplegic_lot'), 
+                    st.session_state.refraction.get('cycloplegic_expiry'), 
+                    st.session_state.refraction.get('cycloplegic_drops'),
                     st.session_state.refraction.get('subjective_method'),
-                    st.session_state.refraction.get('subjective_od_sphere'), st.session_state.refraction.get('subjective_od_cylinder'), st.session_state.refraction.get('subjective_od_axis'), 
-                    st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_od_modifier'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
-                    st.session_state.refraction.get('subjective_os_sphere'), st.session_state.refraction.get('subjective_os_cylinder'), st.session_state.refraction.get('subjective_os_axis'), 
-                    st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_os_modifier'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
-                    st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
+                    st.session_state.refraction.get('subjective_od_sphere'), 
+                    st.session_state.refraction.get('subjective_od_cylinder'), 
+                    st.session_state.refraction.get('subjective_od_axis'), 
+                    st.session_state.refraction.get('subjective_od_va'),
+                    st.session_state.refraction.get('subjective_os_sphere'), 
+                    st.session_state.refraction.get('subjective_os_cylinder'), 
+                    st.session_state.refraction.get('subjective_os_axis'), 
+                    st.session_state.refraction.get('subjective_os_va'),
+                    st.session_state.refraction.get('subjective_notes'),
+                    st.session_state.refraction.get('subjective_binocular_distance_od_sphere'),
+                    st.session_state.refraction.get('subjective_binocular_distance_od_cylinder'),
+                    st.session_state.refraction.get('subjective_binocular_distance_od_axis'),
+                    st.session_state.refraction.get('subjective_binocular_distance_od_prism'),
+                    st.session_state.refraction.get('subjective_binocular_distance_od_base'),
+                    st.session_state.refraction.get('subjective_binocular_distance_os_sphere'),
+                    st.session_state.refraction.get('subjective_binocular_distance_os_cylinder'),
+                    st.session_state.refraction.get('subjective_binocular_distance_os_axis'),
+                    st.session_state.refraction.get('subjective_binocular_distance_os_prism'),
+                    st.session_state.refraction.get('subjective_binocular_distance_os_base'),
+                    st.session_state.refraction.get('subjective_binocular_near_od_sphere'),
+                    st.session_state.refraction.get('subjective_binocular_near_od_cylinder'),
+                    st.session_state.refraction.get('subjective_binocular_near_od_axis'),
+                    st.session_state.refraction.get('subjective_binocular_near_od_prism'),
+                    st.session_state.refraction.get('subjective_binocular_near_od_base'),
+                    st.session_state.refraction.get('subjective_binocular_near_os_sphere'),
+                    st.session_state.refraction.get('subjective_binocular_near_os_cylinder'),
+                    st.session_state.refraction.get('subjective_binocular_near_os_axis'),
+                    st.session_state.refraction.get('subjective_binocular_near_os_prism'),
+                    st.session_state.refraction.get('subjective_binocular_near_os_base'),
+                    st.session_state.refraction.get('subjective_binocular_notes'),
                     binocular_balance, stereopsis,
                     final_od_sph, final_od_cyl, final_od_axis, final_os_sph, final_os_cyl, final_os_axis,
-                    final_bin_va, "", final_add_od, final_add_os, final_deg_od, final_deg_os, final_deg_distance, prescription_notes
+                    final_bin_va,
+                    final_dist_od_prism, final_dist_od_base, final_dist_os_prism, final_dist_os_base,
+                    final_near_od_prism, final_near_od_base, final_near_os_prism, final_near_os_base,
+                    final_deg_distance, bvp, prescription_notes
                 ))
                 conn.commit()
                 st.success("Refraction examination saved successfully!")
@@ -1890,6 +2210,9 @@ def functional_tests():
             # NPA
             npa = st.text_input("NPA (cm)", placeholder="e.g., 8", key="npa")
             
+            # DODAN COLOR VISION
+            color_vision = st.text_area("Color Vision", placeholder="e.g., Normal, Deutan, Protan, Tritan", height=60, key="color_vision")
+            
             other_notes = st.text_area("Other functional notes", height=60, key="func_other_notes")
         
         # DODAN SUBMIT BUTTON
@@ -1901,9 +2224,9 @@ def functional_tests():
                 c = conn.cursor()
                 c.execute('''
                     INSERT INTO functional_tests 
-                    (patient_id, motility, hirschberg, cover_test_distance, cover_test_near, pupils, rapd, confrontation_fields, near_point_convergence_break, near_point_convergence_recovery, near_point_accommodation, other_notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (p['id'], motility, hirschberg, cover_distance, cover_near, pupils, rapd, confrontation, npc_break, npc_recovery, npa, other_notes))
+                    (patient_id, motility, hirschberg, cover_test_distance, cover_test_near, pupils, rapd, confrontation_fields, near_point_convergence_break, near_point_convergence_recovery, near_point_accommodation, color_vision, other_notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (p['id'], motility, hirschberg, cover_distance, cover_near, pupils, rapd, confrontation, npc_break, npc_recovery, npa, color_vision, other_notes))
                 conn.commit()
                 st.success("Functional tests saved successfully!")
                 st.session_state.exam_step = "anterior_segment"
@@ -2220,7 +2543,7 @@ def contact_lenses():
             os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="cl_os_axis")
             os_add = st.text_input("ADD OS", placeholder="e.g., +1.50 for multifocal", key="cl_os_add")
         
-        # Lens-specific parameters - ISPRAVLJENO: Svi tipovi leća imaju svoje parametre
+        # Lens-specific parameters - PROŠIRENO: Svi tipovi leća imaju svoje parametre
         if lens_type == "Soft":
             st.markdown("#### Soft Lens Parameters")
             col_soft1, col_soft2 = st.columns(2)
@@ -2232,27 +2555,47 @@ def contact_lenses():
                 
         elif lens_type == "RGP":
             st.markdown("#### RGP Lens Parameters")
-            col_rgp1, col_rgp2 = st.columns(2)
+            col_rgp1, col_rgp2, col_rgp3 = st.columns(3)
             with col_rgp1:
                 rgp_brand = st.text_input("Brand", placeholder="e.g., Boston, Menicon", key="rgp_brand")
                 rgp_base_curve = st.number_input("Base Curve (mm)", min_value=6.0, max_value=9.0, value=7.8, step=0.1, key="rgp_bc")
             with col_rgp2:
                 rgp_diameter = st.number_input("Diameter (mm)", min_value=8.0, max_value=11.0, value=9.2, step=0.1, key="rgp_diam")
+            with col_rgp3:
+                rgp_optical_zone = st.number_input("Optical Zone (mm)", min_value=5.0, max_value=9.0, value=7.5, step=0.1, key="rgp_oz")
+                rgp_peripheral_curve = st.text_input("Peripheral Curve", placeholder="e.g., 0.2/10.2", key="rgp_pc")
                 
         elif lens_type == "Scleral":
             st.markdown("#### Scleral Lens Parameters")
-            col_scl1, col_scl2 = st.columns(2)
+            col_scl1, col_scl2, col_scl3 = st.columns(3)
             with col_scl1:
                 scleral_brand = st.text_input("Brand", placeholder="e.g., Zenlens, PROSE", key="scl_brand")
                 scleral_diameter = st.text_input("Diameter", placeholder="e.g., 16.5mm, 18.0mm", key="scl_diam")
             with col_scl2:
                 scleral_haptic = st.text_input("Haptic Design", placeholder="e.g., Quadrant specific, Toric", key="scl_haptic")
+                scleral_clearance = st.text_input("Central Clearance (μm)", placeholder="e.g., 200", key="scl_clearance")
+            with col_scl3:
+                scleral_landing_zone = st.text_input("Landing Zone", placeholder="e.g., 2.0mm", key="scl_landing")
+                scleral_sagittal_depth = st.text_input("Sagittal Depth (mm)", placeholder="e.g., 4.5", key="scl_sag")
                 
         elif lens_type == "Ortho-K":
             st.markdown("#### Ortho-K Parameters")
-            ortho_k_parameters = st.text_area("Ortho-K Treatment Parameters", 
-                                            placeholder="Treatment zone, reverse curve, alignment curve details",
-                                            height=100, key="ortho_k")
+            col_ortho1, col_ortho2 = st.columns(2)
+            with col_ortho1:
+                ortho_k_treatment_zone = st.text_input("Treatment Zone (mm)", placeholder="e.g., 5.5", key="ortho_tz")
+                ortho_k_reverse_curve = st.text_input("Reverse Curve (mm)", placeholder="e.g., 7.5/ +1.00", key="ortho_rc")
+            with col_ortho2:
+                ortho_k_alignment_curve = st.text_input("Alignment Curve (mm)", placeholder="e.g., 8.2", key="ortho_ac")
+                ortho_k_landing_zone = st.text_input("Landing Zone (mm)", placeholder="e.g., 10.5", key="ortho_lz")
+            ortho_k_parameters = st.text_area("Additional Ortho-K Parameters", 
+                                            placeholder="Other treatment parameters, lens design specifics",
+                                            height=80, key="ortho_k")
+        
+        elif lens_type == "Custom" or lens_type == "Hybrid" or lens_type == "Other":
+            st.markdown("#### Special Lens Parameters")
+            special_lens_parameters = st.text_area("Special Lens Parameters", 
+                                                 placeholder="Custom design parameters, special features, manufacturing notes",
+                                                 height=100, key="special_params")
         
         # Fitting details
         st.markdown("#### Fitting Details & Assessment")
@@ -2311,10 +2654,11 @@ def contact_lenses():
                      scleral_brand, scleral_diameter,
                      scleral_power_od_sphere, scleral_power_od_cylinder, scleral_power_od_axis, scleral_add_od,
                      scleral_power_os_sphere, scleral_power_os_cylinder, scleral_power_os_axis, scleral_add_os,
-                     ortho_k_parameters,
+                     ortho_k_parameters, ortho_k_treatment_zone, ortho_k_reverse_curve, ortho_k_alignment_curve, ortho_k_landing_zone,
+                     special_lens_parameters,
                      wearing_schedule, care_solution, follow_up_date, fitting_notes,
                      professional_assessment, patient_feedback, fitting_images)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (p['id'], lens_type, lens_design, lens_material, lens_color,
                      soft_brand if lens_type == "Soft" else None,
                      soft_base_curve if lens_type == "Soft" else None,
@@ -2331,6 +2675,11 @@ def contact_lenses():
                      od_sphere, od_cylinder, od_axis, od_add,
                      os_sphere, os_cylinder, os_axis, os_add,
                      ortho_k_parameters if lens_type == "Ortho-K" else None,
+                     ortho_k_treatment_zone if lens_type == "Ortho-K" else None,
+                     ortho_k_reverse_curve if lens_type == "Ortho-K" else None,
+                     ortho_k_alignment_curve if lens_type == "Ortho-K" else None,
+                     ortho_k_landing_zone if lens_type == "Ortho-K" else None,
+                     special_lens_parameters if lens_type in ["Custom", "Hybrid", "Other"] else None,
                      wearing_schedule, care_solution, follow_up_date, fitting_notes,
                      professional_assessment, patient_feedback, json.dumps(file_paths)))
                 
@@ -2575,7 +2924,6 @@ def generate_patient_report():
                 <div style="text-align: center; font-size: 16px; margin: 10px 0;">
                     {od_prescription}
                 </div>
-                <div><strong>ADD:</strong> {ref.get('final_add_od', 'N/A') if not refraction_data.empty else 'N/A'}</div>
                 <div><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A') if not refraction_data.empty else 'N/A'}</div>
             </div>
 
@@ -2584,7 +2932,6 @@ def generate_patient_report():
                 <div style="text-align: center; font-size: 16px; margin: 10px 0;">
                     {os_prescription}
                 </div>
-                <div><strong>ADD:</strong> {ref.get('final_add_os', 'N/A') if not refraction_data.empty else 'N/A'}</div>
                 <div><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A') if not refraction_data.empty else 'N/A'}</div>
             </div>
         </div>
@@ -2873,7 +3220,6 @@ def generate_prescription_report():
                 <div class="parameter"><strong>Sphere:</strong> {ref.get('final_prescribed_od_sphere', '')}</div>
                 <div class="parameter"><strong>Cylinder:</strong> {ref.get('final_prescribed_od_cylinder', '')}</div>
                 <div class="parameter"><strong>Axis:</strong> {ref.get('final_prescribed_od_axis', '')}°</div>
-                <div class="parameter"><strong>ADD:</strong> {ref.get('final_add_od', 'N/A')}</div>
                 <div class="parameter"><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A')}</div>
             </div>
         </div>
@@ -2887,7 +3233,6 @@ def generate_prescription_report():
                 <div class="parameter"><strong>Sphere:</strong> {ref.get('final_prescribed_os_sphere', '')}</div>
                 <div class="parameter"><strong>Cylinder:</strong> {ref.get('final_prescribed_os_cylinder', '')}</div>
                 <div class="parameter"><strong>Axis:</strong> {ref.get('final_prescribed_os_axis', '')}°</div>
-                <div class="parameter"><strong>ADD:</strong> {ref.get('final_add_os', 'N/A')}</div>
                 <div class="parameter"><strong>VA:</strong> {ref.get('final_prescribed_binocular_va', 'N/A')}</div>
             </div>
         </div>
@@ -2923,7 +3268,7 @@ def generate_prescription_report():
 
     <div class="footer">
         <p>© 2024 OphtalCAM EMR System. All rights reserved.</p>
-        <img src="https://i.postimg.cc/qq656tks/Phantasmed-logo.png" style="width: 100px; margin-top: 10px;" alt="PhantasMED">
+        <p>This prescription is valid until {(date.today() + timedelta(days=365)).strftime('%d.%m.%Y')}</p>
     </div>
 
     <div class="no-print" style="margin-top: 30px; padding: 15px; background: #e8f4fd; border-radius: 5px;">
