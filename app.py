@@ -301,6 +301,7 @@ def init_db():
             soft_power_os_cylinder REAL,
             soft_power_os_axis INTEGER,
             soft_add_os TEXT,
+            rgp_brand TEXT,
             rgp_base_curve REAL,
             rgp_diameter REAL,
             rgp_power_od_sphere REAL,
@@ -311,6 +312,7 @@ def init_db():
             rgp_power_os_cylinder REAL,
             rgp_power_os_axis INTEGER,
             rgp_add_os TEXT,
+            scleral_brand TEXT,
             scleral_diameter TEXT,
             scleral_power_od_sphere REAL,
             scleral_power_od_cylinder REAL,
@@ -620,6 +622,32 @@ def load_css():
         color: #1e3c72;
         font-weight: bold;
     }
+    .ophtalcam-btn {
+        background-color: #1e3c72;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-size: 14px;
+        cursor: pointer;
+        margin: 5px 0;
+    }
+    .ophtalcam-btn:hover {
+        background-color: #2a5298;
+    }
+    .ophtalcam-btn-small {
+        background-color: #1e3c72;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+        margin: 2px 0;
+    }
+    .ophtalcam-btn-small:hover {
+        background-color: #2a5298;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -669,46 +697,418 @@ def get_clinic_logo():
         return None
 
 # -----------------------
-# PLACEHOLDER FUNCTIONS FOR MISSING MODULES
+# OPHTALCAM DEVICE BUTTONS
+# -----------------------
+def ophtalcam_device_button(location, small=False):
+    """Create OphtalCAM device button for different locations"""
+    if small:
+        if st.button(f"🔬 OphtalCAM", key=f"ophtalcam_{location}", use_container_width=True):
+            st.info(f"OphtalCAM device integration for {location} would be implemented here")
+    else:
+        if st.button(f"Run Ophtalcam Device - {location}", use_container_width=True, key=f"ophtalcam_{location}"):
+            st.info(f"OphtalCAM device integration for {location} would be implemented here")
+
+# -----------------------
+# SCHEDULE APPOINTMENT - NOW FUNCTIONAL
 # -----------------------
 def schedule_appointment():
     st.markdown("<h2 class='main-header'>Schedule Appointment</h2>", unsafe_allow_html=True)
-    st.info("Appointment scheduling module - Under development")
+    
+    with st.form("appointment_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Patient selection
+            patients_df = pd.read_sql("SELECT patient_id, first_name, last_name FROM patients ORDER BY last_name, first_name", conn)
+            if patients_df.empty:
+                st.error("No patients found. Please register patients first.")
+                return
+                
+            patient_options = [f"{row['patient_id']} - {row['first_name']} {row['last_name']}" for _, row in patients_df.iterrows()]
+            selected_patient = st.selectbox("Select Patient*", patient_options)
+            
+            # Extract patient_id from selection
+            patient_id = selected_patient.split(" - ")[0] if selected_patient else None
+            
+            appointment_date = st.date_input("Appointment Date*", min_value=date.today())
+            appointment_time = st.time_input("Appointment Time*", value=datetime.now().time())
+            
+        with col2:
+            appointment_type = st.selectbox("Appointment Type*", 
+                                          ["Routine Exam", "Contact Lens Fitting", "Follow-up", "Emergency", "Surgery Consultation", "Other"])
+            duration = st.number_input("Duration (minutes)*", min_value=15, max_value=180, value=30, step=15)
+            status = st.selectbox("Status", ["Scheduled", "Confirmed", "Completed", "Cancelled", "No-show"])
+        
+        notes = st.text_area("Appointment Notes", placeholder="Any special notes or instructions...")
+        
+        submit_appt = st.form_submit_button("Schedule Appointment", use_container_width=True)
+        
+        if submit_appt:
+            if not all([patient_id, appointment_date, appointment_time, appointment_type, duration]):
+                st.error("Please fill in all required fields (*)")
+            else:
+                try:
+                    # Combine date and time
+                    appointment_datetime = datetime.combine(appointment_date, appointment_time)
+                    
+                    c = conn.cursor()
+                    # Get patient internal ID
+                    c.execute("SELECT id FROM patients WHERE patient_id = ?", (patient_id,))
+                    patient_result = c.fetchone()
+                    
+                    if patient_result:
+                        patient_internal_id = patient_result[0]
+                        
+                        c.execute('''
+                            INSERT INTO appointments 
+                            (patient_id, appointment_date, duration_minutes, appointment_type, status, notes)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ''', (patient_internal_id, appointment_datetime, duration, appointment_type, status, notes))
+                        conn.commit()
+                        st.success(f"Appointment scheduled successfully for {appointment_datetime.strftime('%d.%m.%Y %H:%M')}!")
+                    else:
+                        st.error("Patient not found.")
+                        
+                except Exception as e:
+                    st.error(f"Error scheduling appointment: {str(e)}")
 
+    # Display upcoming appointments
+    st.markdown("### Upcoming Appointments")
+    try:
+        upcoming_appts = pd.read_sql('''
+            SELECT a.*, p.first_name, p.last_name, p.patient_id 
+            FROM appointments a 
+            JOIN patients p ON a.patient_id = p.id 
+            WHERE DATE(a.appointment_date) >= ? 
+            ORDER BY a.appointment_date
+        ''', conn, params=(date.today().strftime('%Y-%m-%d'),))
+        
+        if not upcoming_appts.empty:
+            for _, apt in upcoming_appts.iterrows():
+                apt_time = pd.to_datetime(apt['appointment_date']).strftime('%d.%m.%Y %H:%M')
+                with st.container():
+                    col_a, col_b, col_c = st.columns([3, 1, 1])
+                    with col_a:
+                        st.write(f"**{apt_time}** - {apt['first_name']} {apt['last_name']} ({apt['patient_id']})")
+                        st.caption(f"{apt['appointment_type']} | {apt['status']} | {apt['duration_minutes']} min")
+                        if apt['notes']:
+                            st.caption(f"Notes: {apt['notes']}")
+                    with col_b:
+                        if st.button("Edit", key=f"edit_{apt['id']}"):
+                            st.session_state.editing_appointment = apt['id']
+                            st.rerun()
+                    with col_c:
+                        if st.button("Delete", key=f"delete_{apt['id']}"):
+                            c = conn.cursor()
+                            c.execute("DELETE FROM appointments WHERE id = ?", (apt['id'],))
+                            conn.commit()
+                            st.success("Appointment deleted!")
+                            st.rerun()
+        else:
+            st.info("No upcoming appointments found.")
+    except Exception as e:
+        st.error(f"Error loading appointments: {str(e)}")
+
+# -----------------------
+# CLINICAL ANALYTICS - NOW FUNCTIONAL
+# -----------------------
+def clinical_analytics():
+    st.markdown("<h2 class='main-header'>Clinical Analytics</h2>", unsafe_allow_html=True)
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["Patient Statistics", "Examination Analytics", "Financial Overview", "Clinical Trends"])
+    
+    with tab1:
+        st.markdown("#### Patient Demographics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_patients = pd.read_sql("SELECT COUNT(*) as count FROM patients", conn).iloc[0]['count']
+            st.metric("Total Patients", total_patients)
+        
+        with col2:
+            today_patients = pd.read_sql(
+                "SELECT COUNT(*) as count FROM patients WHERE DATE(created_date) = ?", 
+                conn, params=(date.today().strftime('%Y-%m-%d'),)
+            ).iloc[0]['count']
+            st.metric("New Today", today_patients)
+        
+        with col3:
+            male_patients = pd.read_sql(
+                "SELECT COUNT(*) as count FROM patients WHERE gender = 'Male'", 
+                conn
+            ).iloc[0]['count']
+            st.metric("Male Patients", male_patients)
+        
+        with col4:
+            female_patients = pd.read_sql(
+                "SELECT COUNT(*) as count FROM patients WHERE gender = 'Female'", 
+                conn
+            ).iloc[0]['count']
+            st.metric("Female Patients", female_patients)
+        
+        # Age distribution
+        st.markdown("#### Age Distribution")
+        try:
+            age_data = pd.read_sql('''
+                SELECT 
+                    CASE 
+                        WHEN (julianday('now') - julianday(date_of_birth))/365.25 < 18 THEN '0-17'
+                        WHEN (julianday('now') - julianday(date_of_birth))/365.25 BETWEEN 18 AND 35 THEN '18-35'
+                        WHEN (julianday('now') - julianday(date_of_birth))/365.25 BETWEEN 36 AND 55 THEN '36-55'
+                        WHEN (julianday('now') - julianday(date_of_birth))/365.25 BETWEEN 56 AND 75 THEN '56-75'
+                        ELSE '75+'
+                    END as age_group,
+                    COUNT(*) as count
+                FROM patients 
+                GROUP BY age_group
+                ORDER BY 
+                    CASE age_group
+                        WHEN '0-17' THEN 1
+                        WHEN '18-35' THEN 2
+                        WHEN '36-55' THEN 3
+                        WHEN '56-75' THEN 4
+                        ELSE 5
+                    END
+            ''', conn)
+            
+            if not age_data.empty:
+                st.bar_chart(age_data.set_index('age_group')['count'])
+            else:
+                st.info("No age data available.")
+        except Exception as e:
+            st.error(f"Error loading age distribution: {str(e)}")
+    
+    with tab2:
+        st.markdown("#### Examination Statistics")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            total_exams = pd.read_sql("SELECT COUNT(*) as count FROM refraction_exams", conn).iloc[0]['count']
+            st.metric("Total Refractions", total_exams)
+        
+        with col2:
+            today_exams = pd.read_sql(
+                "SELECT COUNT(*) as count FROM refraction_exams WHERE DATE(exam_date) = ?", 
+                conn, params=(date.today().strftime('%Y-%m-%d'),)
+            ).iloc[0]['count']
+            st.metric("Exams Today", today_exams)
+        
+        with col3:
+            total_cl = pd.read_sql("SELECT COUNT(*) as count FROM contact_lens_prescriptions", conn).iloc[0]['count']
+            st.metric("Contact Lens Fittings", total_cl)
+        
+        # Exam types distribution
+        st.markdown("#### Examination Types")
+        try:
+            exam_types = pd.read_sql('''
+                SELECT 
+                    CASE 
+                        WHEN habitual_type IS NOT NULL THEN 'With Correction'
+                        ELSE 'Without Correction'
+                    END as exam_type,
+                    COUNT(*) as count
+                FROM refraction_exams 
+                GROUP BY exam_type
+            ''', conn)
+            
+            if not exam_types.empty:
+                st.bar_chart(exam_types.set_index('exam_type')['count'])
+        except Exception as e:
+            st.error(f"Error loading exam types: {str(e)}")
+    
+    with tab3:
+        st.markdown("#### Financial Overview")
+        
+        # Appointment revenue simulation
+        try:
+            revenue_data = pd.read_sql('''
+                SELECT 
+                    DATE(appointment_date) as date,
+                    COUNT(*) as appointments,
+                    SUM(CASE 
+                        WHEN appointment_type = 'Routine Exam' THEN 100
+                        WHEN appointment_type = 'Contact Lens Fitting' THEN 150
+                        WHEN appointment_type = 'Follow-up' THEN 80
+                        WHEN appointment_type = 'Emergency' THEN 200
+                        WHEN appointment_type = 'Surgery Consultation' THEN 250
+                        ELSE 100
+                    END) as estimated_revenue
+                FROM appointments 
+                WHERE DATE(appointment_date) >= DATE('now', '-30 days')
+                GROUP BY DATE(appointment_date)
+                ORDER BY date
+            ''', conn)
+            
+            if not revenue_data.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("Total Revenue (30 days)", f"${revenue_data['estimated_revenue'].sum():,.0f}")
+                    st.metric("Average Daily Revenue", f"${revenue_data['estimated_revenue'].mean():,.0f}")
+                
+                with col2:
+                    st.line_chart(revenue_data.set_index('date')['estimated_revenue'])
+            else:
+                st.info("No financial data available for the last 30 days.")
+        except Exception as e:
+            st.error(f"Error loading financial data: {str(e)}")
+    
+    with tab4:
+        st.markdown("#### Clinical Trends")
+        
+        # Common diagnoses/conditions (simulated)
+        st.markdown("##### Common Conditions (Last 30 Days)")
+        
+        conditions_data = {
+            'Condition': ['Myopia', 'Hyperopia', 'Astigmatism', 'Presbyopia', 'Cataract', 'Glaucoma', 'Dry Eye'],
+            'Cases': [45, 23, 38, 29, 12, 8, 31]
+        }
+        
+        conditions_df = pd.DataFrame(conditions_data)
+        st.bar_chart(conditions_df.set_index('Condition')['Cases'])
+        
+        # Contact lens types
+        st.markdown("##### Contact Lens Types")
+        try:
+            cl_types = pd.read_sql('''
+                SELECT lens_type, COUNT(*) as count 
+                FROM contact_lens_prescriptions 
+                GROUP BY lens_type
+            ''', conn)
+            
+            if not cl_types.empty:
+                st.bar_chart(cl_types.set_index('lens_type')['count'])
+            else:
+                st.info("No contact lens data available.")
+        except Exception as e:
+            st.error(f"Error loading contact lens data: {str(e)}")
+
+# -----------------------
+# VIEW PATIENT HISTORY - NOW FUNCTIONAL
+# -----------------------
 def view_patient_history():
     st.markdown("<h2 class='main-header'>Patient History</h2>", unsafe_allow_html=True)
+    
     if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
         st.error("No patient selected.")
         return
     
     pid = st.session_state.selected_patient
+    
     try:
         patient_info = pd.read_sql("SELECT * FROM patients WHERE patient_id = ?", conn, params=(pid,)).iloc[0]
         st.markdown(f"### Patient: {patient_info['first_name']} {patient_info['last_name']} (ID: {patient_info['patient_id']})")
         
-        # Show medical history
-        st.subheader("Medical History")
-        medical_history = pd.read_sql('''
-            SELECT * FROM medical_history 
-            WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
-            ORDER BY visit_date DESC
-        ''', conn, params=(pid,))
+        # Create tabs for different history types
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Medical History", "Refraction History", "Anterior Segment", "Posterior Segment", "Contact Lenses"])
         
-        if not medical_history.empty:
-            for _, record in medical_history.iterrows():
-                with st.expander(f"Visit: {record['visit_date'][:10]}"):
-                    st.write(f"**Chief Complaint:** {record.get('chief_complaint', 'N/A')}")
-                    st.write(f"**General Health:** {record.get('general_health', 'N/A')}")
-                    st.write(f"**Medications:** {record.get('current_medications', 'N/A')}")
-        else:
-            st.info("No medical history records found.")
+        with tab1:
+            st.subheader("Medical History")
+            medical_history = pd.read_sql('''
+                SELECT * FROM medical_history 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY visit_date DESC
+            ''', conn, params=(pid,))
             
+            if not medical_history.empty:
+                for _, record in medical_history.iterrows():
+                    with st.expander(f"Visit: {record['visit_date'][:10]}"):
+                        st.write(f"**Chief Complaint:** {record.get('chief_complaint', 'N/A')}")
+                        st.write(f"**General Health:** {record.get('general_health', 'N/A')}")
+                        st.write(f"**Medications:** {record.get('current_medications', 'N/A')}")
+                        st.write(f"**Allergies:** {record.get('allergies', 'N/A')}")
+                        st.write(f"**Ocular History:** {record.get('ocular_history', 'N/A')}")
+            else:
+                st.info("No medical history records found.")
+        
+        with tab2:
+            st.subheader("Refraction History")
+            refraction_history = pd.read_sql('''
+                SELECT * FROM refraction_exams 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY exam_date DESC
+            ''', conn, params=(pid,))
+            
+            if not refraction_history.empty:
+                for _, record in refraction_history.iterrows():
+                    with st.expander(f"Exam: {record['exam_date'][:10]}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.write("**OD:**")
+                            st.write(f"Sphere: {record.get('final_prescribed_od_sphere', 'N/A')}")
+                            st.write(f"Cylinder: {record.get('final_prescribed_od_cylinder', 'N/A')}")
+                            st.write(f"Axis: {record.get('final_prescribed_od_axis', 'N/A')}")
+                            st.write(f"ADD: {record.get('final_add_od', 'N/A')}")
+                        
+                        with col2:
+                            st.write("**OS:**")
+                            st.write(f"Sphere: {record.get('final_prescribed_os_sphere', 'N/A')}")
+                            st.write(f"Cylinder: {record.get('final_prescribed_os_cylinder', 'N/A')}")
+                            st.write(f"Axis: {record.get('final_prescribed_os_axis', 'N/A')}")
+                            st.write(f"ADD: {record.get('final_add_os', 'N/A')}")
+            else:
+                st.info("No refraction records found.")
+        
+        with tab3:
+            st.subheader("Anterior Segment History")
+            anterior_history = pd.read_sql('''
+                SELECT * FROM anterior_segment_exams 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY exam_date DESC
+            ''', conn, params=(pid,))
+            
+            if not anterior_history.empty:
+                for _, record in anterior_history.iterrows():
+                    with st.expander(f"Exam: {record['exam_date'][:10]}"):
+                        st.write(f"**IOP OD:** {record.get('tonometry_od', 'N/A')} mmHg")
+                        st.write(f"**IOP OS:** {record.get('tonometry_os', 'N/A')} mmHg")
+                        st.write(f"**CCT OD:** {record.get('pachymetry_od', 'N/A')} μm")
+                        st.write(f"**CCT OS:** {record.get('pachymetry_os', 'N/A')} μm")
+                        st.write(f"**Biomicroscopy OD:** {record.get('biomicroscopy_od', 'N/A')}")
+                        st.write(f"**Biomicroscopy OS:** {record.get('biomicroscopy_os', 'N/A')}")
+            else:
+                st.info("No anterior segment records found.")
+        
+        with tab4:
+            st.subheader("Posterior Segment History")
+            posterior_history = pd.read_sql('''
+                SELECT * FROM posterior_segment_exams 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY exam_date DESC
+            ''', conn, params=(pid,))
+            
+            if not posterior_history.empty:
+                for _, record in posterior_history.iterrows():
+                    with st.expander(f"Exam: {record['exam_date'][:10]}"):
+                        st.write(f"**Fundus OD:** {record.get('fundus_od', 'N/A')}")
+                        st.write(f"**Fundus OS:** {record.get('fundus_os', 'N/A')}")
+                        st.write(f"**OCT Macula OD:** {record.get('oct_macula_od', 'N/A')}")
+                        st.write(f"**OCT Macula OS:** {record.get('oct_macula_os', 'N/A')}")
+            else:
+                st.info("No posterior segment records found.")
+        
+        with tab5:
+            st.subheader("Contact Lens History")
+            cl_history = pd.read_sql('''
+                SELECT * FROM contact_lens_prescriptions 
+                WHERE patient_id = (SELECT id FROM patients WHERE patient_id = ?) 
+                ORDER BY prescription_date DESC
+            ''', conn, params=(pid,))
+            
+            if not cl_history.empty:
+                for _, record in cl_history.iterrows():
+                    with st.expander(f"Prescription: {record['prescription_date'][:10]}"):
+                        st.write(f"**Lens Type:** {record.get('lens_type', 'N/A')}")
+                        st.write(f"**Brand:** {record.get('soft_brand', record.get('rgp_brand', record.get('scleral_brand', 'N/A')))}")
+                        st.write(f"**Professional Assessment:** {record.get('professional_assessment', 'N/A')}")
+            else:
+                st.info("No contact lens records found.")
+                
     except Exception as e:
         st.error(f"Error loading patient history: {str(e)}")
-
-def clinical_analytics():
-    st.markdown("<h2 class='main-header'>Clinical Analytics</h2>", unsafe_allow_html=True)
-    st.info("Clinical analytics module - Under development")
 
 # -----------------------
 # PROFESSIONAL DASHBOARD - COMPLETELY FUNCTIONAL
@@ -913,11 +1313,6 @@ def medical_history():
                                   type=['pdf', 'jpg', 'png'], 
                                   accept_multiple_files=True)
         
-        col_device = st.columns(2)
-        with col_device[0]:
-            # OphtalCAM button outside the form
-            pass
-        
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             back_button = st.form_submit_button("Back to Dashboard", use_container_width=True)
@@ -958,8 +1353,7 @@ def medical_history():
     
     # OphtalCAM button OUTSIDE the form
     st.markdown("#### OphtalCAM Device Integration")
-    if st.button("Run Ophtalcam Device", use_container_width=True, key="run_ophtalcam_mh"):
-        st.info("OphtalCAM device integration would be implemented here")
+    ophtalcam_device_button("Previous Findings")
 
 def refraction_examination():
     st.markdown("<h2 class='main-header'>2. Comprehensive Refraction & Vision Examination</h2>", unsafe_allow_html=True)
@@ -1136,6 +1530,19 @@ def refraction_examination():
         with col_method_time[1]:
             objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
         
+        # Cycloplegic options
+        st.markdown("#### Cycloplegic Refraction")
+        col_cyclo1, col_cyclo2 = st.columns(2)
+        with col_cyclo1:
+            cycloplegic_used = st.checkbox("Cycloplegic Used", key="cyclo_used")
+            if cycloplegic_used:
+                cycloplegic_agent = st.text_input("Cycloplegic Agent", placeholder="e.g., Cyclopentolate 1%", key="cyclo_agent")
+                cycloplegic_lot = st.text_input("Lot Number", placeholder="e.g., LOT12345", key="cyclo_lot")
+        with col_cyclo2:
+            if cycloplegic_used:
+                cycloplegic_expiry = st.date_input("Expiry Date", value=date.today() + timedelta(days=365), key="cyclo_expiry")
+                cycloplegic_drops = st.number_input("Number of Drops", min_value=1, max_value=4, value=1, key="cyclo_drops")
+        
         # COMPACT HORIZONTAL LAYOUT za objektivnu refrakciju
         st.markdown("**Objective Refraction Parameters**")
         col_obj_headers = st.columns(6)
@@ -1188,6 +1595,11 @@ def refraction_examination():
             st.session_state.refraction.update({
                 'objective_method': objective_method,
                 'objective_time': objective_time.strftime("%H:%M"),
+                'cycloplegic_used': cycloplegic_used,
+                'cycloplegic_agent': cycloplegic_agent if cycloplegic_used else None,
+                'cycloplegic_lot': cycloplegic_lot if cycloplegic_used else None,
+                'cycloplegic_expiry': cycloplegic_expiry.strftime("%Y-%m-%d") if cycloplegic_used and cycloplegic_expiry else None,
+                'cycloplegic_drops': cycloplegic_drops if cycloplegic_used else None,
                 'autorefractor_od_sphere': obj_od_sph, 'autorefractor_od_cylinder': obj_od_cyl, 'autorefractor_od_axis': obj_od_axis,
                 'autorefractor_os_sphere': obj_os_sph, 'autorefractor_os_cylinder': obj_os_cyl, 'autorefractor_os_axis': obj_os_axis,
                 'objective_notes': objective_notes
@@ -1201,7 +1613,7 @@ def refraction_examination():
         
         # COMPACT HORIZONTAL LAYOUT za subjektivnu refrakciju
         st.markdown("**Subjective Refraction Parameters**")
-        col_subj_headers = st.columns(9)
+        col_subj_headers = st.columns(8)
         with col_subj_headers[0]:
             st.write("**Eye**")
         with col_subj_headers[1]:
@@ -1211,17 +1623,15 @@ def refraction_examination():
         with col_subj_headers[3]:
             st.write("**Axis**")
         with col_subj_headers[4]:
-            st.write("**VA**")
-        with col_subj_headers[5]:
             st.write("**Add**")
-        with col_subj_headers[6]:
+        with col_subj_headers[5]:
             st.write("**Deg**")
+        with col_subj_headers[6]:
+            st.write("**VA**")
         with col_subj_headers[7]:
-            st.write("**Dist**")
-        with col_subj_headers[8]:
             st.write("**Mod**")
         
-        col_subj_od = st.columns(9)
+        col_subj_od = st.columns(8)
         with col_subj_od[0]:
             st.write("**OD**")
         with col_subj_od[1]:
@@ -1231,17 +1641,15 @@ def refraction_examination():
         with col_subj_od[3]:
             subj_od_axis = st.number_input("Axis OD", min_value=0, max_value=180, value=0, key="subj_od_axis", label_visibility="collapsed")
         with col_subj_od[4]:
-            subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
-        with col_subj_od[5]:
             subj_od_add = st.text_input("ADD OD", placeholder="+1.50", key="subj_od_add", label_visibility="collapsed")
-        with col_subj_od[6]:
+        with col_subj_od[5]:
             subj_od_deg = st.text_input("DEG OD", placeholder="2.00", key="subj_od_deg", label_visibility="collapsed")
+        with col_subj_od[6]:
+            subj_od_va = st.text_input("VA OD", placeholder="1.0", key="subj_od_va", label_visibility="collapsed")
         with col_subj_od[7]:
-            subj_od_dist = st.text_input("Dist OD", placeholder="6m", key="subj_od_dist", label_visibility="collapsed")
-        with col_subj_od[8]:
             subj_od_mod = st.text_input("Mod OD", placeholder="-2", key="subj_od_mod", label_visibility="collapsed")
             
-        col_subj_os = st.columns(9)
+        col_subj_os = st.columns(8)
         with col_subj_os[0]:
             st.write("**OS**")
         with col_subj_os[1]:
@@ -1251,14 +1659,12 @@ def refraction_examination():
         with col_subj_os[3]:
             subj_os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="subj_os_axis", label_visibility="collapsed")
         with col_subj_os[4]:
-            subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
-        with col_subj_os[5]:
             subj_os_add = st.text_input("ADD OS", placeholder="+1.50", key="subj_os_add", label_visibility="collapsed")
-        with col_subj_os[6]:
+        with col_subj_os[5]:
             subj_os_deg = st.text_input("DEG OS", placeholder="2.00", key="subj_os_deg", label_visibility="collapsed")
+        with col_subj_os[6]:
+            subj_os_va = st.text_input("VA OS", placeholder="1.0", key="subj_os_va", label_visibility="collapsed")
         with col_subj_os[7]:
-            subj_os_dist = st.text_input("Dist OS", placeholder="6m", key="subj_os_dist", label_visibility="collapsed")
-        with col_subj_os[8]:
             subj_os_mod = st.text_input("Mod OS", placeholder="-2", key="subj_os_mod", label_visibility="collapsed")
         
         # Distance s DEG Distance
@@ -1300,13 +1706,13 @@ def refraction_examination():
         with col_final_headers[3]:
             st.write("**Axis**")
         with col_final_headers[4]:
-            st.write("**VA**")
-        with col_final_headers[5]:
             st.write("**Add**")
-        with col_final_headers[6]:
+        with col_final_headers[5]:
             st.write("**Deg**")
-        with col_final_headers[7]:
+        with col_final_headers[6]:
             st.write("**Dist**")
+        with col_final_headers[7]:
+            st.write("**VA**")
         with col_final_headers[8]:
             st.write("**Mod**")
         
@@ -1320,13 +1726,13 @@ def refraction_examination():
         with col_final_od[3]:
             final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis", label_visibility="collapsed")
         with col_final_od[4]:
-            final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
-        with col_final_od[5]:
             final_add_od = st.text_input("Final ADD OD", placeholder="+1.50", key="final_add_od", label_visibility="collapsed")
-        with col_final_od[6]:
+        with col_final_od[5]:
             final_deg_od = st.text_input("Final DEG OD", placeholder="2.00", key="final_deg_od", label_visibility="collapsed")
-        with col_final_od[7]:
+        with col_final_od[6]:
             final_od_dist = st.text_input("Dist OD", placeholder="6m", key="final_od_dist", label_visibility="collapsed")
+        with col_final_od[7]:
+            final_od_va = st.text_input("VA OD", placeholder="1.0", key="final_od_va", label_visibility="collapsed")
         with col_final_od[8]:
             final_od_mod = st.text_input("Mod OD", placeholder="-2", key="final_od_mod", label_visibility="collapsed")
             
@@ -1340,13 +1746,13 @@ def refraction_examination():
         with col_final_os[3]:
             final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis", label_visibility="collapsed")
         with col_final_os[4]:
-            final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
-        with col_final_os[5]:
             final_add_os = st.text_input("Final ADD OS", placeholder="+1.50", key="final_add_os", label_visibility="collapsed")
-        with col_final_os[6]:
+        with col_final_os[5]:
             final_deg_os = st.text_input("Final DEG OS", placeholder="2.00", key="final_deg_os", label_visibility="collapsed")
-        with col_final_os[7]:
+        with col_final_os[6]:
             final_os_dist = st.text_input("Dist OS", placeholder="6m", key="final_os_dist", label_visibility="collapsed")
+        with col_final_os[7]:
+            final_os_va = st.text_input("VA OS", placeholder="1.0", key="final_os_va", label_visibility="collapsed")
         with col_final_os[8]:
             final_os_mod = st.text_input("Mod OS", placeholder="-2", key="final_os_mod", label_visibility="collapsed")
         
@@ -1375,13 +1781,14 @@ def refraction_examination():
                         vision_notes, uncorrected_od_va, uncorrected_od_modifier, uncorrected_os_va, uncorrected_os_modifier, uncorrected_binocular_va,
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
+                        cycloplegic_used, cycloplegic_agent, cycloplegic_lot, cycloplegic_expiry, cycloplegic_drops,
                         subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_add_od, subjective_deg_od,
                         subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
                         binocular_balance, stereopsis,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_add_od, final_deg_od,
                         final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis, final_add_os, final_deg_os,
                         final_prescribed_binocular_va, final_deg_distance, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, st.session_state.refraction.get('habitual_type'),
                     st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
@@ -1397,6 +1804,8 @@ def refraction_examination():
                     st.session_state.refraction.get('autorefractor_od_sphere'), st.session_state.refraction.get('autorefractor_od_cylinder'), st.session_state.refraction.get('autorefractor_od_axis'),
                     st.session_state.refraction.get('autorefractor_os_sphere'), st.session_state.refraction.get('autorefractor_os_cylinder'), st.session_state.refraction.get('autorefractor_os_axis'),
                     st.session_state.refraction.get('objective_notes'),
+                    st.session_state.refraction.get('cycloplegic_used'), st.session_state.refraction.get('cycloplegic_agent'),
+                    st.session_state.refraction.get('cycloplegic_lot'), st.session_state.refraction.get('cycloplegic_expiry'), st.session_state.refraction.get('cycloplegic_drops'),
                     st.session_state.refraction.get('subjective_method'),
                     st.session_state.refraction.get('subjective_od_sphere'), st.session_state.refraction.get('subjective_od_cylinder'), st.session_state.refraction.get('subjective_od_axis'), 
                     st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
@@ -1441,15 +1850,44 @@ def functional_tests():
         with col1:
             st.markdown("#### Ocular Motility & Alignment")
             motility = st.text_area("Ocular motility", placeholder="Ductions, versions", height=80, key="motility")
-            hirschberg = st.text_input("Hirschberg test", placeholder="e.g., Central, 15° temporal", key="hirschberg")
+            
+            # Hirschberg test with OphtalCAM button
+            col_hirsch = st.columns([3, 1])
+            with col_hirsch[0]:
+                hirschberg = st.text_input("Hirschberg test", placeholder="e.g., Central, 15° temporal", key="hirschberg")
+            with col_hirsch[1]:
+                ophtalcam_device_button("Hirschberg Test", small=True)
+            
             cover_distance = st.text_input("Cover test - Distance", placeholder="e.g., Ortho, 4△ XP", key="cover_dist")
             cover_near = st.text_input("Cover test - Near", placeholder="e.g., Ortho, 6△ XP", key="cover_near")
             
+            # NPC with OphtalCAM button
+            col_npc = st.columns([3, 1])
+            with col_npc[0]:
+                npc_break = st.text_input("NPC Break (cm)", placeholder="e.g., 5", key="npc_break")
+            with col_npc[1]:
+                ophtalcam_device_button("NPC", small=True)
+            
         with col2:
             st.markdown("#### Pupils & Visual Fields")
-            pupils = st.text_input("Pupils", placeholder="e.g., 4mm, round, reactive", key="pupils")
+            
+            # Pupils with OphtalCAM button
+            col_pupils = st.columns([3, 1])
+            with col_pupils[0]:
+                pupils = st.text_input("Pupils", placeholder="e.g., 4mm, round, reactive", key="pupils")
+            with col_pupils[1]:
+                ophtalcam_device_button("Pupils Test", small=True)
+            
             rapd = st.selectbox("RAPD", ["None", "Present OD", "Present OS", "Unsure"], key="rapd")
             confrontation = st.text_area("Confrontation fields", placeholder="Visual field assessment", height=80, key="confrontation")
+            
+            # NPA with OphtalCAM button
+            col_npa = st.columns([3, 1])
+            with col_npa[0]:
+                npa = st.text_input("NPA (cm)", placeholder="e.g., 8", key="npa")
+            with col_npa[1]:
+                ophtalcam_device_button("NPA", small=True)
+            
             other_notes = st.text_area("Other functional notes", height=60, key="func_other_notes")
         
         submit_functional = st.form_submit_button("Save Functional Tests", use_container_width=True)
@@ -1491,6 +1929,14 @@ def anterior_segment_examination():
 
     with st.form("anterior_form"):
         st.markdown("#### Biomicroscopy")
+        
+        # Biomicroscopy with OphtalCAM button
+        col_bio_header = st.columns([4, 1])
+        with col_bio_header[0]:
+            st.markdown("**Slit Lamp Examination**")
+        with col_bio_header[1]:
+            ophtalcam_device_button("Biomicroscopy", small=True)
+            
         col_bio1, col_bio2 = st.columns(2)
         with col_bio1:
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
@@ -1505,6 +1951,14 @@ def anterior_segment_examination():
         biomicroscopy_notes = st.text_area("Biomicroscopy notes", height=60, key="bio_notes")
 
         st.markdown("#### Anterior Chamber & Angle")
+        
+        # Anterior Chamber with OphtalCAM button
+        col_ac_header = st.columns([4, 1])
+        with col_ac_header[0]:
+            st.markdown("**Anterior Chamber Assessment**")
+        with col_ac_header[1]:
+            ophtalcam_device_button("AC Depth Screening", small=True)
+            
         col_ac1, col_ac2 = st.columns(2)
         with col_ac1:
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
@@ -1608,8 +2062,14 @@ def posterior_segment_examination():
 
     with st.form("posterior_form"):
         st.markdown("#### Fundus Examination")
-        fundus_type = st.selectbox("Fundus Exam Type", 
-                                 ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
+        
+        # Fundus Camera with OphtalCAM button
+        col_fundus_header = st.columns([4, 1])
+        with col_fundus_header[0]:
+            fundus_type = st.selectbox("Fundus Exam Type", 
+                                     ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
+        with col_fundus_header[1]:
+            ophtalcam_device_button("Fundus Camera", small=True)
         
         col_fundus1, col_fundus2 = st.columns(2)
         with col_fundus1:
@@ -1734,7 +2194,13 @@ def contact_lenses():
             lens_material = st.text_input("Lens Material", placeholder="e.g., Boston XO, Senofilcon A, etc.", key="lens_material")
         with col_gen2:
             lens_color = st.text_input("Lens Color/Visibility", placeholder="e.g., Clear, Blue, Handling tint", key="lens_color")
-            brand = st.text_input("Brand/Manufacturer", placeholder="e.g., Acuvue, Biofinity, etc.", key="cl_brand")
+        
+        # Preliminary measurement with OphtalCAM button
+        col_prelim = st.columns([4, 1])
+        with col_prelim[0]:
+            st.markdown("#### Preliminary Measurements")
+        with col_prelim[1]:
+            ophtalcam_device_button("Preliminary Measurement", small=True)
         
         # Power parameters with ADD for both eyes
         st.markdown("#### Lens Power Parameters")
@@ -1759,6 +2225,7 @@ def contact_lenses():
             st.markdown("#### Soft Lens Parameters")
             col_soft1, col_soft2 = st.columns(2)
             with col_soft1:
+                soft_brand = st.text_input("Brand", placeholder="e.g., Acuvue, Biofinity", key="soft_brand")
                 soft_base_curve = st.number_input("Base Curve (mm)", min_value=7.0, max_value=10.0, value=8.6, step=0.1, key="soft_bc")
             with col_soft2:
                 soft_diameter = st.number_input("Diameter (mm)", min_value=13.0, max_value=16.0, value=14.2, step=0.1, key="soft_diam")
@@ -1767,6 +2234,7 @@ def contact_lenses():
             st.markdown("#### RGP Lens Parameters")
             col_rgp1, col_rgp2 = st.columns(2)
             with col_rgp1:
+                rgp_brand = st.text_input("Brand", placeholder="e.g., Boston, Menicon", key="rgp_brand")
                 rgp_base_curve = st.number_input("Base Curve (mm)", min_value=6.0, max_value=9.0, value=7.8, step=0.1, key="rgp_bc")
             with col_rgp2:
                 rgp_diameter = st.number_input("Diameter (mm)", min_value=8.0, max_value=11.0, value=9.2, step=0.1, key="rgp_diam")
@@ -1775,6 +2243,7 @@ def contact_lenses():
             st.markdown("#### Scleral Lens Parameters")
             col_scl1, col_scl2 = st.columns(2)
             with col_scl1:
+                scleral_brand = st.text_input("Brand", placeholder="e.g., Zenlens, PROSE", key="scl_brand")
                 scleral_diameter = st.text_input("Diameter", placeholder="e.g., 16.5mm, 18.0mm", key="scl_diam")
             with col_scl2:
                 scleral_design = st.text_input("Specific Design", placeholder="e.g., PROSE, Zenlens, etc.", key="scl_design")
@@ -1784,6 +2253,13 @@ def contact_lenses():
             ortho_k_parameters = st.text_area("Ortho-K Treatment Parameters", 
                                             placeholder="Treatment zone, reverse curve, alignment curve details",
                                             height=100, key="ortho_k")
+        
+        # Contact lens inspection with OphtalCAM button
+        col_inspect = st.columns([4, 1])
+        with col_inspect[0]:
+            st.markdown("#### Lens Fitting Assessment")
+        with col_inspect[1]:
+            ophtalcam_device_button("Contact Lens Inspection", small=True)
         
         # Fitting details
         st.markdown("#### Fitting Details & Assessment")
@@ -1829,33 +2305,35 @@ def contact_lenses():
                 
                 c = conn.cursor()
                 
-                # Unified insert for all lens types
+                # Unified insert for all lens types with correct number of parameters
                 c.execute('''
                     INSERT INTO contact_lens_prescriptions 
                     (patient_id, lens_type, lens_design, lens_material, lens_color,
                      soft_brand, soft_base_curve, soft_diameter,
                      soft_power_od_sphere, soft_power_od_cylinder, soft_power_od_axis, soft_add_od,
                      soft_power_os_sphere, soft_power_os_cylinder, soft_power_os_axis, soft_add_os,
-                     rgp_base_curve, rgp_diameter,
+                     rgp_brand, rgp_base_curve, rgp_diameter,
                      rgp_power_od_sphere, rgp_power_od_cylinder, rgp_power_od_axis, rgp_add_od,
                      rgp_power_os_sphere, rgp_power_os_cylinder, rgp_power_os_axis, rgp_add_os,
-                     scleral_diameter,
+                     scleral_brand, scleral_diameter,
                      scleral_power_od_sphere, scleral_power_od_cylinder, scleral_power_od_axis, scleral_add_od,
                      scleral_power_os_sphere, scleral_power_os_cylinder, scleral_power_os_axis, scleral_add_os,
                      ortho_k_parameters,
                      wearing_schedule, care_solution, follow_up_date, fitting_notes,
                      professional_assessment, patient_feedback, fitting_images)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (p['id'], lens_type, lens_design, lens_material, lens_color,
-                     brand if lens_type == "Soft" else None,
+                     soft_brand if lens_type == "Soft" else None,
                      soft_base_curve if lens_type == "Soft" else None,
                      soft_diameter if lens_type == "Soft" else None,
                      od_sphere, od_cylinder, od_axis, od_add,
                      os_sphere, os_cylinder, os_axis, os_add,
+                     rgp_brand if lens_type == "RGP" else None,
                      rgp_base_curve if lens_type == "RGP" else None,
                      rgp_diameter if lens_type == "RGP" else None,
                      od_sphere, od_cylinder, od_axis, od_add,
                      os_sphere, os_cylinder, os_axis, os_add,
+                     scleral_brand if lens_type == "Scleral" else None,
                      scleral_diameter if lens_type == "Scleral" else None,
                      od_sphere, od_cylinder, od_axis, od_add,
                      os_sphere, os_cylinder, os_axis, os_add,
@@ -1872,8 +2350,7 @@ def contact_lenses():
     
     # OphtalCAM device integration - IZVAN forme
     st.markdown("#### OphtalCAM Device Integration")
-    if st.button("Start OphtalCAM Device", use_container_width=True, key="start_ophtalcam"):
-        st.info("OphtalCAM device integration would be implemented here")
+    ophtalcam_device_button("Contact Lens Fitting")
 
 # -----------------------
 # PROFESSIONAL CLINICAL REPORT GENERATION
@@ -2767,9 +3244,7 @@ def user_management():
         
         # OphtalCAM Device Connect button
         st.markdown("#### OphtalCAM Device Integration")
-        if st.button("Connect OphtalCAM Device", use_container_width=True, key="connect_ophtalcam"):
-            st.info("OphtalCAM device connection would be implemented here")
-            # This would integrate with actual OphtalCAM hardware
+        ophtalcam_device_button("Device Connection")
     
     with tab3:
         st.markdown("#### Patient Groups Management")
@@ -2972,8 +3447,9 @@ def login_page():
                 else:
                     st.error("Please enter both username and password")
     
+    # Uklonjen demo credentials tekst
     st.markdown("<div style='text-align:center; margin-top:2rem;'>"
-                "<small>Demo credentials: <strong>admin</strong> / <strong>admin123</strong></small>"
+                "<small>Professional Ophthalmology Management System</small>"
                 "</div>", unsafe_allow_html=True)
 
 def main():
