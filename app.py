@@ -42,7 +42,7 @@ def init_db():
                 'subjective_binocular_near_od_prism', 'subjective_binocular_near_od_base', 'subjective_binocular_near_os_prism', 'subjective_binocular_near_os_base',
                 'final_distance_od_prism', 'final_distance_od_base', 'final_distance_os_prism', 'final_distance_os_base',
                 'final_near_od_prism', 'final_near_od_base', 'final_near_os_prism', 'final_near_os_base',
-                'bvp', 'color_vision'
+                'bvp', 'color_vision', 'subjective_binocular_vision', 'near_point_convergence_break', 'near_point_convergence_recovery'
             ],
             'posterior_segment_exams': [
                 'ophthalmoscopy_od', 'ophthalmoscopy_os'
@@ -52,13 +52,19 @@ def init_db():
                 'anterior_chamber_volume_od', 'anterior_chamber_volume_os'
             ],
             'functional_tests': [
-                'rapd'
+                'rapd', 'near_point_convergence_break', 'near_point_convergence_recovery'
             ],
             'medical_history': [
                 'chief_complaint'
             ],
             'contact_lens_prescriptions': [
-                'lens_material', 'lens_color'
+                'lens_material', 'lens_color', 'rgp_brand', 'rgp_base_curve', 'rgp_diameter',
+                'rgp_power_od_sphere', 'rgp_power_od_cylinder', 'rgp_power_od_axis', 'rgp_add_od',
+                'rgp_power_os_sphere', 'rgp_power_os_cylinder', 'rgp_power_os_axis', 'rgp_add_os',
+                'scleral_brand', 'scleral_diameter', 'scleral_power_od_sphere', 'scleral_power_od_cylinder', 
+                'scleral_power_od_axis', 'scleral_add_od', 'scleral_power_os_sphere', 'scleral_power_os_cylinder', 
+                'scleral_power_os_axis', 'scleral_add_os', 'ortho_k_parameters', 'ortho_k_treatment_zone', 
+                'ortho_k_reverse_curve', 'ortho_k_alignment_curve', 'ortho_k_landing_zone', 'special_lens_parameters'
             ]
         }
         
@@ -136,7 +142,7 @@ def init_db():
         )
     ''')
 
-    # Refraction exams - UPDATED WITH NEW STRUCTURE
+    # Refraction exams - UPDATED WITH ALL COLUMNS
     c.execute('''
         CREATE TABLE IF NOT EXISTS refraction_exams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -224,6 +230,7 @@ def init_db():
             subjective_binocular_near_os_axis INTEGER,
             subjective_binocular_near_os_prism TEXT,
             subjective_binocular_near_os_base TEXT,
+            subjective_binocular_vision TEXT,
             subjective_binocular_notes TEXT,
             
             binocular_balance TEXT,
@@ -243,8 +250,14 @@ def init_db():
             final_distance_od_base TEXT,
             final_distance_os_prism TEXT,
             final_distance_os_base TEXT,
+            final_near_od_sphere REAL,
+            final_near_od_cylinder REAL,
+            final_near_od_axis INTEGER,
             final_near_od_prism TEXT,
             final_near_od_base TEXT,
+            final_near_os_sphere REAL,
+            final_near_os_cylinder REAL,
+            final_near_os_axis INTEGER,
             final_near_os_prism TEXT,
             final_near_os_base TEXT,
             final_deg_distance TEXT,
@@ -338,7 +351,7 @@ def init_db():
         )
     ''')
 
-    # Contact lenses table - UPDATED WITH ADD AND DESIGN OPTIONS
+    # Contact lenses table - COMPLETE WITH ALL COLUMNS
     c.execute('''
         CREATE TABLE IF NOT EXISTS contact_lens_prescriptions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1655,7 +1668,7 @@ def refraction_examination():
             })
             st.success("Vision data saved!")
 
-    # 3) Objective Refraction
+    # 3) Objective Refraction - ISPRAVLJENO: Bez "Cycloplegic Refraction" naslova
     st.markdown("<div class='exam-section'><h4>Objective Refraction</h4></div>", unsafe_allow_html=True)
     with st.form("objective_form"):
         # Metoda i vrijeme jedno pored drugog
@@ -1666,7 +1679,7 @@ def refraction_examination():
             objective_time = st.time_input("Time of measurement", value=datetime.now().time(), key="obj_time")
         
         # Cycloplegic options - ISPRAVLJENO: Objective Refraction s cycloplegic opcijom
-        st.markdown("#### Cycloplegic Refraction")
+        st.markdown("#### Cycloplegic Options")
         col_cyclo1, col_cyclo2 = st.columns(2)
         with col_cyclo1:
             cycloplegic_used = st.checkbox("Cycloplegic Used", key="cyclo_used")
@@ -1897,6 +1910,7 @@ def refraction_examination():
         with col_bin_near_os[6]:
             bin_near_os_va = st.text_input("VA OS Bin Near", placeholder="1.0 (-1)", key="bin_near_os_va", label_visibility="collapsed")
         
+        subjective_binocular_vision = st.text_input("Subjective Binocular Vision", placeholder="Binocular VA", key="subj_bin_vision")
         subjective_binocular_notes = st.text_area("Subjective Binocular Notes", height=60, key="subj_bin_notes")
         
         submit_subjective_binocular = st.form_submit_button("Save Subjective Binocular Data", use_container_width=True)
@@ -1923,108 +1937,138 @@ def refraction_examination():
                 'subjective_binocular_near_os_axis': bin_near_os_axis,
                 'subjective_binocular_near_os_prism': bin_near_os_prism,
                 'subjective_binocular_near_os_base': bin_near_os_base,
+                'subjective_binocular_vision': subjective_binocular_vision,
                 'subjective_binocular_notes': subjective_binocular_notes
             })
             st.success("Subjective binocular data saved!")
 
-    # 6) Final Prescription WITH PRISM AND BASE
+    # 6) Final Prescription WITH PRISM AND BASE - ISPRAVLJENO: Svi stupci za blizinu kao i za daljinu
     st.markdown("<div class='exam-section'><h4>Final Prescription</h4></div>", unsafe_allow_html=True)
     with st.form("final_form"):
         # COMPACT HORIZONTAL LAYOUT za finalnu korekciju
-        st.markdown("**Final Prescription Parameters**")
-        col_final_headers = st.columns(8)
-        with col_final_headers[0]:
+        st.markdown("**Final Distance Prescription**")
+        col_final_dist_headers = st.columns(8)
+        with col_final_dist_headers[0]:
             st.write("**Eye**")
-        with col_final_headers[1]:
+        with col_final_dist_headers[1]:
             st.write("**Sphere**")
-        with col_final_headers[2]:
+        with col_final_dist_headers[2]:
             st.write("**Cylinder**")
-        with col_final_headers[3]:
+        with col_final_dist_headers[3]:
             st.write("**Axis**")
-        with col_final_headers[4]:
+        with col_final_dist_headers[4]:
             st.write("**Prism**")
-        with col_final_headers[5]:
+        with col_final_dist_headers[5]:
             st.write("**Base**")
-        with col_final_headers[6]:
+        with col_final_dist_headers[6]:
             st.write("**VA**")
-        with col_final_headers[7]:
+        with col_final_dist_headers[7]:
             st.write("**BVP**")
         
-        col_final_od = st.columns(8)
-        with col_final_od[0]:
+        col_final_dist_od = st.columns(8)
+        with col_final_dist_od[0]:
             st.write("**OD**")
-        with col_final_od[1]:
+        with col_final_dist_od[1]:
             final_od_sph = st.number_input("Final Sphere OD", value=0.0, step=0.25, format="%.2f", key="final_od_sph", label_visibility="collapsed")
-        with col_final_od[2]:
+        with col_final_dist_od[2]:
             final_od_cyl = st.number_input("Final Cylinder OD", value=0.0, step=0.25, format="%.2f", key="final_od_cyl", label_visibility="collapsed")
-        with col_final_od[3]:
+        with col_final_dist_od[3]:
             final_od_axis = st.number_input("Final Axis OD", min_value=0, max_value=180, value=0, key="final_od_axis", label_visibility="collapsed")
-        with col_final_od[4]:
+        with col_final_dist_od[4]:
             final_dist_od_prism = st.text_input("Prism OD Dist", placeholder="e.g., 2", key="final_dist_od_prism", label_visibility="collapsed")
-        with col_final_od[5]:
+        with col_final_dist_od[5]:
             final_dist_od_base = st.selectbox("Base OD Dist", ["", "BU", "BD", "BI", "BO"], key="final_dist_od_base", label_visibility="collapsed")
-        with col_final_od[6]:
+        with col_final_dist_od[6]:
             final_od_va = st.text_input("VA OD", placeholder="1.0 (-1)", key="final_od_va", label_visibility="collapsed")
-        with col_final_od[7]:
+        with col_final_dist_od[7]:
             final_od_bvp = st.text_input("BVP OD", placeholder="e.g., 12.5", key="final_od_bvp", label_visibility="collapsed")
             
-        col_final_os = st.columns(8)
-        with col_final_os[0]:
+        col_final_dist_os = st.columns(8)
+        with col_final_dist_os[0]:
             st.write("**OS**")
-        with col_final_os[1]:
+        with col_final_dist_os[1]:
             final_os_sph = st.number_input("Final Sphere OS", value=0.0, step=0.25, format="%.2f", key="final_os_sph", label_visibility="collapsed")
-        with col_final_os[2]:
+        with col_final_dist_os[2]:
             final_os_cyl = st.number_input("Final Cylinder OS", value=0.0, step=0.25, format="%.2f", key="final_os_cyl", label_visibility="collapsed")
-        with col_final_os[3]:
+        with col_final_dist_os[3]:
             final_os_axis = st.number_input("Final Axis OS", min_value=0, max_value=180, value=0, key="final_os_axis", label_visibility="collapsed")
-        with col_final_os[4]:
+        with col_final_dist_os[4]:
             final_dist_os_prism = st.text_input("Prism OS Dist", placeholder="e.g., 2", key="final_dist_os_prism", label_visibility="collapsed")
-        with col_final_os[5]:
+        with col_final_dist_os[5]:
             final_dist_os_base = st.selectbox("Base OS Dist", ["", "BU", "BD", "BI", "BO"], key="final_dist_os_base", label_visibility="collapsed")
-        with col_final_os[6]:
+        with col_final_dist_os[6]:
             final_os_va = st.text_input("VA OS", placeholder="1.0 (-1)", key="final_os_va", label_visibility="collapsed")
-        with col_final_os[7]:
+        with col_final_dist_os[7]:
             final_os_bvp = st.text_input("BVP OS", placeholder="e.g., 12.5", key="final_os_bvp", label_visibility="collapsed")
         
-        # Final Near Correction with Prism and Base
-        st.markdown("**Final Near Correction**")
-        col_final_near_headers = st.columns(6)
+        # Final Near Correction with ALL COLUMNS - ISPRAVLJENO: Svi stupci kao za daljinu
+        st.markdown("**Final Near Prescription**")
+        col_final_near_headers = st.columns(8)
         with col_final_near_headers[0]:
             st.write("**Eye**")
         with col_final_near_headers[1]:
-            st.write("**Prism**")
+            st.write("**Sphere**")
         with col_final_near_headers[2]:
-            st.write("**Base**")
+            st.write("**Cylinder**")
         with col_final_near_headers[3]:
-            st.write("**Eye**")
+            st.write("**Axis**")
         with col_final_near_headers[4]:
             st.write("**Prism**")
         with col_final_near_headers[5]:
             st.write("**Base**")
+        with col_final_near_headers[6]:
+            st.write("**VA**")
+        with col_final_near_headers[7]:
+            st.write("**ADD**")
         
-        col_final_near = st.columns(6)
-        with col_final_near[0]:
+        col_final_near_od = st.columns(8)
+        with col_final_near_od[0]:
             st.write("**OD**")
-        with col_final_near[1]:
+        with col_final_near_od[1]:
+            final_near_od_sph = st.number_input("Final Near Sphere OD", value=0.0, step=0.25, format="%.2f", key="final_near_od_sph", label_visibility="collapsed")
+        with col_final_near_od[2]:
+            final_near_od_cyl = st.number_input("Final Near Cylinder OD", value=0.0, step=0.25, format="%.2f", key="final_near_od_cyl", label_visibility="collapsed")
+        with col_final_near_od[3]:
+            final_near_od_axis = st.number_input("Final Near Axis OD", min_value=0, max_value=180, value=0, key="final_near_od_axis", label_visibility="collapsed")
+        with col_final_near_od[4]:
             final_near_od_prism = st.text_input("Prism OD Near", placeholder="e.g., 2", key="final_near_od_prism", label_visibility="collapsed")
-        with col_final_near[2]:
+        with col_final_near_od[5]:
             final_near_od_base = st.selectbox("Base OD Near", ["", "BU", "BD", "BI", "BO"], key="final_near_od_base", label_visibility="collapsed")
-        with col_final_near[3]:
+        with col_final_near_od[6]:
+            final_near_od_va = st.text_input("VA OD Near", placeholder="1.0 (-1)", key="final_near_od_va", label_visibility="collapsed")
+        with col_final_near_od[7]:
+            final_near_od_add = st.text_input("ADD OD", placeholder="e.g., +1.50", key="final_near_od_add", label_visibility="collapsed")
+            
+        col_final_near_os = st.columns(8)
+        with col_final_near_os[0]:
             st.write("**OS**")
-        with col_final_near[4]:
+        with col_final_near_os[1]:
+            final_near_os_sph = st.number_input("Final Near Sphere OS", value=0.0, step=0.25, format="%.2f", key="final_near_os_sph", label_visibility="collapsed")
+        with col_final_near_os[2]:
+            final_near_os_cyl = st.number_input("Final Near Cylinder OS", value=0.0, step=0.25, format="%.2f", key="final_near_os_cyl", label_visibility="collapsed")
+        with col_final_near_os[3]:
+            final_near_os_axis = st.number_input("Final Near Axis OS", min_value=0, max_value=180, value=0, key="final_near_os_axis", label_visibility="collapsed")
+        with col_final_near_os[4]:
             final_near_os_prism = st.text_input("Prism OS Near", placeholder="e.g., 2", key="final_near_os_prism", label_visibility="collapsed")
-        with col_final_near[5]:
+        with col_final_near_os[5]:
             final_near_os_base = st.selectbox("Base OS Near", ["", "BU", "BD", "BI", "BO"], key="final_near_os_base", label_visibility="collapsed")
+        with col_final_near_os[6]:
+            final_near_os_va = st.text_input("VA OS Near", placeholder="1.0 (-1)", key="final_near_os_va", label_visibility="collapsed")
+        with col_final_near_os[7]:
+            final_near_os_add = st.text_input("ADD OS", placeholder="e.g., +1.50", key="final_near_os_add", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
         with col_bin1:
             binocular_balance = st.selectbox("Binocular Balance", ["Balanced", "OD dominant", "OS dominant", "Unbalanced"], key="bin_balance")
             stereopsis = st.text_input("Stereoacuity", placeholder="e.g., 40 arcsec", key="stereopsis")
             final_bin_va = st.text_input("Final Binocular VA", placeholder="e.g., 1.0 (-1)", key="final_bin_va")
+            npc_break = st.text_input("NPC Break (cm)", placeholder="e.g., 5", key="npc_break_final")
+            npc_recovery = st.text_input("NPC Recovery (cm)", placeholder="e.g., 7", key="npc_recovery_final")
             
         with col_bin2:
             final_deg_distance = st.text_input("DEG Distance", placeholder="e.g., 2.00", key="final_deg_distance")
             bvp = st.text_input("BVP", placeholder="e.g., 12.5", key="bvp")
+            color_vision = st.text_input("Color Vision", placeholder="e.g., Normal", key="color_vision_final")
             prescription_notes = st.text_area("Prescription Notes", height=80, key="presc_notes")
         
         submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
@@ -2035,7 +2079,7 @@ def refraction_examination():
                 pid = p['id']
                 
                 c = conn.cursor()
-                # ISPRAVLJEN SQL UPIT - sada ima točan broj parametara
+                # ISPRAVLJEN SQL UPIT - sada ima točan broj parametara sa svim stupcima
                 c.execute('''
                     INSERT INTO refraction_exams (
                         patient_id, habitual_type, habitual_od_va, habitual_os_va,
@@ -2062,15 +2106,18 @@ def refraction_examination():
                         subjective_binocular_near_od_prism, subjective_binocular_near_od_base,
                         subjective_binocular_near_os_sphere, subjective_binocular_near_os_cylinder, subjective_binocular_near_os_axis,
                         subjective_binocular_near_os_prism, subjective_binocular_near_os_base,
-                        subjective_binocular_notes,
-                        binocular_balance, stereopsis,
+                        subjective_binocular_vision, subjective_binocular_notes,
+                        binocular_balance, stereopsis, near_point_convergence_break, near_point_convergence_recovery,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis,
                         final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
                         final_prescribed_binocular_va,
                         final_distance_od_prism, final_distance_od_base, final_distance_os_prism, final_distance_os_base,
-                        final_near_od_prism, final_near_od_base, final_near_os_prism, final_near_os_base,
-                        final_deg_distance, bvp, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        final_near_od_sphere, final_near_od_cylinder, final_near_od_axis,
+                        final_near_od_prism, final_near_od_base,
+                        final_near_os_sphere, final_near_os_cylinder, final_near_os_axis,
+                        final_near_os_prism, final_near_os_base,
+                        final_deg_distance, bvp, color_vision, prescription_notes
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, 
                     st.session_state.refraction.get('habitual_type'),
@@ -2146,13 +2193,17 @@ def refraction_examination():
                     st.session_state.refraction.get('subjective_binocular_near_os_axis'),
                     st.session_state.refraction.get('subjective_binocular_near_os_prism'),
                     st.session_state.refraction.get('subjective_binocular_near_os_base'),
+                    st.session_state.refraction.get('subjective_binocular_vision'),
                     st.session_state.refraction.get('subjective_binocular_notes'),
-                    binocular_balance, stereopsis,
+                    binocular_balance, stereopsis, npc_break, npc_recovery,
                     final_od_sph, final_od_cyl, final_od_axis, final_os_sph, final_os_cyl, final_os_axis,
                     final_bin_va,
                     final_dist_od_prism, final_dist_od_base, final_dist_os_prism, final_dist_os_base,
-                    final_near_od_prism, final_near_od_base, final_near_os_prism, final_near_os_base,
-                    final_deg_distance, bvp, prescription_notes
+                    final_near_od_sph, final_near_od_cyl, final_near_od_axis,
+                    final_near_od_prism, final_near_od_base,
+                    final_near_os_sph, final_near_os_cyl, final_near_os_axis,
+                    final_near_os_prism, final_near_os_base,
+                    final_deg_distance, bvp, color_vision, prescription_notes
                 ))
                 conn.commit()
                 st.success("Refraction examination saved successfully!")
@@ -2395,7 +2446,7 @@ def posterior_segment_examination():
         st.markdown("#### Fundus Examination")
         # ISPRAVLJENO: Uklonjena oftalmoskopija iz padajućeg izbornika
         fundus_type = st.selectbox("Fundus Exam Type", 
-                                 ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
+                                 ["Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
         
         col_fundus1, col_fundus2 = st.columns(2)
         with col_fundus1:
@@ -2483,7 +2534,7 @@ def posterior_segment_examination():
     ophtalcam_device_button("Fundus Camera")
 
 # -----------------------
-# PROFESSIONAL CONTACT LENSES WITH ADD AND FLEXIBLE DESIGN OPTIONS
+# PROFESSIONAL CONTACT LENSES WITH ADD AND FLEXIBLE DESIGN OPTIONS - ISPRAVLJENO
 # -----------------------
 def contact_lenses():
     st.markdown("<h2 class='main-header'>6. Contact Lens Fitting & Prescription</h2>", unsafe_allow_html=True)
@@ -2699,7 +2750,7 @@ def contact_lenses():
         ophtalcam_device_button("Contact Lens Inspection")
 
 # -----------------------
-# PROFESSIONAL CLINICAL REPORT GENERATION
+# PROFESSIONAL CLINICAL REPORT GENERATION - ISPRAVLJENO: Sada vuče podatke
 # -----------------------
 def generate_patient_report():
     """Generate comprehensive patient report"""
