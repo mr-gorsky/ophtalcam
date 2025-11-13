@@ -697,15 +697,15 @@ def get_clinic_logo():
         return None
 
 # -----------------------
-# OPHTALCAM DEVICE BUTTONS
+# OPHTALCAM DEVICE BUTTONS - ISPRAVLJENO
 # -----------------------
 def ophtalcam_device_button(location, small=False):
-    """Create OphtalCAM device button for different locations"""
+    """Create OphtalCAM device button for different locations - ISPRAVLJENO"""
     if small:
-        if st.button(f"🔬 OphtalCAM", key=f"ophtalcam_{location}", use_container_width=True):
+        if st.button(f"🔬 OphtalCAM", key=f"ophtalcam_{location}_{datetime.now().timestamp()}", use_container_width=True):
             st.info(f"OphtalCAM device integration for {location} would be implemented here")
     else:
-        if st.button(f"Run Ophtalcam Device - {location}", use_container_width=True, key=f"ophtalcam_{location}"):
+        if st.button(f"Run Ophtalcam Device - {location}", use_container_width=True, key=f"ophtalcam_{location}_{datetime.now().timestamp()}"):
             st.info(f"OphtalCAM device integration for {location} would be implemented here")
 
 # -----------------------
@@ -1774,6 +1774,7 @@ def refraction_examination():
                 pid = p['id']
                 
                 c = conn.cursor()
+                # ISPRAVLJEN SQL UPIT - točan broj parametara
                 c.execute('''
                     INSERT INTO refraction_exams (
                         patient_id, habitual_type, habitual_od_va, habitual_od_modifier, habitual_os_va, habitual_os_modifier,
@@ -1782,15 +1783,15 @@ def refraction_examination():
                         objective_method, objective_time, autorefractor_od_sphere, autorefractor_od_cylinder, autorefractor_od_axis,
                         autorefractor_os_sphere, autorefractor_os_cylinder, autorefractor_os_axis, objective_notes,
                         cycloplegic_used, cycloplegic_agent, cycloplegic_lot, cycloplegic_expiry, cycloplegic_drops,
-                        subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_add_od, subjective_deg_od,
-                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
+                        subjective_method, subjective_od_sphere, subjective_od_cylinder, subjective_od_axis, subjective_od_va, subjective_od_modifier, subjective_add_od, subjective_deg_od,
+                        subjective_os_sphere, subjective_os_cylinder, subjective_os_axis, subjective_os_va, subjective_os_modifier, subjective_add_os, subjective_deg_os, subjective_distance, subjective_deg_distance, subjective_notes,
                         binocular_balance, stereopsis,
-                        final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_add_od, final_deg_od,
-                        final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis, final_add_os, final_deg_os,
-                        final_prescribed_binocular_va, final_deg_distance, prescription_notes
+                        final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
+                        final_prescribed_binocular_va, final_prescribed_binocular_modifier, final_add_od, final_add_os, final_deg_od, final_deg_os, final_deg_distance, prescription_notes
                     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
-                    pid, st.session_state.refraction.get('habitual_type'),
+                    pid, 
+                    st.session_state.refraction.get('habitual_type'),
                     st.session_state.refraction.get('habitual_od_va'), st.session_state.refraction.get('habitual_od_modifier'),
                     st.session_state.refraction.get('habitual_os_va'), st.session_state.refraction.get('habitual_os_modifier'),
                     st.session_state.refraction.get('habitual_binocular_va'), st.session_state.refraction.get('habitual_pd'),
@@ -1808,14 +1809,13 @@ def refraction_examination():
                     st.session_state.refraction.get('cycloplegic_lot'), st.session_state.refraction.get('cycloplegic_expiry'), st.session_state.refraction.get('cycloplegic_drops'),
                     st.session_state.refraction.get('subjective_method'),
                     st.session_state.refraction.get('subjective_od_sphere'), st.session_state.refraction.get('subjective_od_cylinder'), st.session_state.refraction.get('subjective_od_axis'), 
-                    st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
+                    st.session_state.refraction.get('subjective_od_va'), st.session_state.refraction.get('subjective_od_modifier'), st.session_state.refraction.get('subjective_add_od'), st.session_state.refraction.get('subjective_deg_od'),
                     st.session_state.refraction.get('subjective_os_sphere'), st.session_state.refraction.get('subjective_os_cylinder'), st.session_state.refraction.get('subjective_os_axis'), 
-                    st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
+                    st.session_state.refraction.get('subjective_os_va'), st.session_state.refraction.get('subjective_os_modifier'), st.session_state.refraction.get('subjective_add_os'), st.session_state.refraction.get('subjective_deg_os'),
                     st.session_state.refraction.get('subjective_distance'), st.session_state.refraction.get('subjective_deg_distance'), st.session_state.refraction.get('subjective_notes'),
                     binocular_balance, stereopsis,
-                    final_od_sph, final_od_cyl, final_od_axis, final_add_od, final_deg_od,
-                    final_os_sph, final_os_cyl, final_os_axis, final_add_os, final_deg_os,
-                    final_bin_va, final_deg_distance, prescription_notes
+                    final_od_sph, final_od_cyl, final_od_axis, final_os_sph, final_os_cyl, final_os_axis,
+                    final_bin_va, "", final_add_od, final_add_os, final_deg_od, final_deg_os, final_deg_distance, prescription_notes
                 ))
                 conn.commit()
                 st.success("Refraction examination saved successfully!")
@@ -1851,45 +1851,30 @@ def functional_tests():
             st.markdown("#### Ocular Motility & Alignment")
             motility = st.text_area("Ocular motility", placeholder="Ductions, versions", height=80, key="motility")
             
-            # Hirschberg test with OphtalCAM button
-            col_hirsch = st.columns([3, 1])
-            with col_hirsch[0]:
-                hirschberg = st.text_input("Hirschberg test", placeholder="e.g., Central, 15° temporal", key="hirschberg")
-            with col_hirsch[1]:
-                ophtalcam_device_button("Hirschberg Test", small=True)
+            # Hirschberg test
+            hirschberg = st.text_input("Hirschberg test", placeholder="e.g., Central, 15° temporal", key="hirschberg")
             
             cover_distance = st.text_input("Cover test - Distance", placeholder="e.g., Ortho, 4△ XP", key="cover_dist")
             cover_near = st.text_input("Cover test - Near", placeholder="e.g., Ortho, 6△ XP", key="cover_near")
             
-            # NPC with OphtalCAM button
-            col_npc = st.columns([3, 1])
-            with col_npc[0]:
-                npc_break = st.text_input("NPC Break (cm)", placeholder="e.g., 5", key="npc_break")
-            with col_npc[1]:
-                ophtalcam_device_button("NPC", small=True)
+            # NPC
+            npc_break = st.text_input("NPC Break (cm)", placeholder="e.g., 5", key="npc_break")
             
         with col2:
             st.markdown("#### Pupils & Visual Fields")
             
-            # Pupils with OphtalCAM button
-            col_pupils = st.columns([3, 1])
-            with col_pupils[0]:
-                pupils = st.text_input("Pupils", placeholder="e.g., 4mm, round, reactive", key="pupils")
-            with col_pupils[1]:
-                ophtalcam_device_button("Pupils Test", small=True)
+            # Pupils
+            pupils = st.text_input("Pupils", placeholder="e.g., 4mm, round, reactive", key="pupils")
             
             rapd = st.selectbox("RAPD", ["None", "Present OD", "Present OS", "Unsure"], key="rapd")
             confrontation = st.text_area("Confrontation fields", placeholder="Visual field assessment", height=80, key="confrontation")
             
-            # NPA with OphtalCAM button
-            col_npa = st.columns([3, 1])
-            with col_npa[0]:
-                npa = st.text_input("NPA (cm)", placeholder="e.g., 8", key="npa")
-            with col_npa[1]:
-                ophtalcam_device_button("NPA", small=True)
+            # NPA
+            npa = st.text_input("NPA (cm)", placeholder="e.g., 8", key="npa")
             
             other_notes = st.text_area("Other functional notes", height=60, key="func_other_notes")
         
+        # DODAN SUBMIT BUTTON
         submit_functional = st.form_submit_button("Save Functional Tests", use_container_width=True)
         
         if submit_functional:
@@ -1907,6 +1892,18 @@ def functional_tests():
                 st.rerun()
             except Exception as e:
                 st.error(f"Database error: {str(e)}")
+    
+    # OphtalCAM buttons IZVAN forme
+    st.markdown("#### OphtalCAM Device Integration")
+    col_opht1, col_opht2, col_opht3, col_opht4 = st.columns(4)
+    with col_opht1:
+        ophtalcam_device_button("Hirschberg Test")
+    with col_opht2:
+        ophtalcam_device_button("NPC Test")
+    with col_opht3:
+        ophtalcam_device_button("Pupils Test")
+    with col_opht4:
+        ophtalcam_device_button("NPA Test")
 
 def anterior_segment_examination():
     st.markdown("<h2 class='main-header'>4. Anterior Segment Examination</h2>", unsafe_allow_html=True)
@@ -1930,13 +1927,6 @@ def anterior_segment_examination():
     with st.form("anterior_form"):
         st.markdown("#### Biomicroscopy")
         
-        # Biomicroscopy with OphtalCAM button
-        col_bio_header = st.columns([4, 1])
-        with col_bio_header[0]:
-            st.markdown("**Slit Lamp Examination**")
-        with col_bio_header[1]:
-            ophtalcam_device_button("Biomicroscopy", small=True)
-            
         col_bio1, col_bio2 = st.columns(2)
         with col_bio1:
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
@@ -1951,14 +1941,6 @@ def anterior_segment_examination():
         biomicroscopy_notes = st.text_area("Biomicroscopy notes", height=60, key="bio_notes")
 
         st.markdown("#### Anterior Chamber & Angle")
-        
-        # Anterior Chamber with OphtalCAM button
-        col_ac_header = st.columns([4, 1])
-        with col_ac_header[0]:
-            st.markdown("**Anterior Chamber Assessment**")
-        with col_ac_header[1]:
-            ophtalcam_device_button("AC Depth Screening", small=True)
-            
         col_ac1, col_ac2 = st.columns(2)
         with col_ac1:
             st.markdown("<div class='eye-column'><strong>Right Eye (OD)</strong></div>", unsafe_allow_html=True)
@@ -2040,6 +2022,14 @@ def anterior_segment_examination():
                 st.rerun()
             except Exception as e:
                 st.error(f"Database error: {str(e)}")
+    
+    # OphtalCAM buttons IZVAN forme
+    st.markdown("#### OphtalCAM Device Integration")
+    col_opht1, col_opht2 = st.columns(2)
+    with col_opht1:
+        ophtalcam_device_button("Biomicroscopy")
+    with col_opht2:
+        ophtalcam_device_button("AC Depth Screening")
 
 def posterior_segment_examination():
     st.markdown("<h2 class='main-header'>5. Posterior Segment Examination</h2>", unsafe_allow_html=True)
@@ -2062,14 +2052,8 @@ def posterior_segment_examination():
 
     with st.form("posterior_form"):
         st.markdown("#### Fundus Examination")
-        
-        # Fundus Camera with OphtalCAM button
-        col_fundus_header = st.columns([4, 1])
-        with col_fundus_header[0]:
-            fundus_type = st.selectbox("Fundus Exam Type", 
-                                     ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
-        with col_fundus_header[1]:
-            ophtalcam_device_button("Fundus Camera", small=True)
+        fundus_type = st.selectbox("Fundus Exam Type", 
+                                 ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
         
         col_fundus1, col_fundus2 = st.columns(2)
         with col_fundus1:
@@ -2151,6 +2135,10 @@ def posterior_segment_examination():
                 st.rerun()
             except Exception as e:
                 st.error(f"Database error: {str(e)}")
+    
+    # OphtalCAM button IZVAN forme
+    st.markdown("#### OphtalCAM Device Integration")
+    ophtalcam_device_button("Fundus Camera")
 
 # -----------------------
 # PROFESSIONAL CONTACT LENSES WITH ADD AND FLEXIBLE DESIGN OPTIONS
@@ -2194,13 +2182,6 @@ def contact_lenses():
             lens_material = st.text_input("Lens Material", placeholder="e.g., Boston XO, Senofilcon A, etc.", key="lens_material")
         with col_gen2:
             lens_color = st.text_input("Lens Color/Visibility", placeholder="e.g., Clear, Blue, Handling tint", key="lens_color")
-        
-        # Preliminary measurement with OphtalCAM button
-        col_prelim = st.columns([4, 1])
-        with col_prelim[0]:
-            st.markdown("#### Preliminary Measurements")
-        with col_prelim[1]:
-            ophtalcam_device_button("Preliminary Measurement", small=True)
         
         # Power parameters with ADD for both eyes
         st.markdown("#### Lens Power Parameters")
@@ -2253,13 +2234,6 @@ def contact_lenses():
             ortho_k_parameters = st.text_area("Ortho-K Treatment Parameters", 
                                             placeholder="Treatment zone, reverse curve, alignment curve details",
                                             height=100, key="ortho_k")
-        
-        # Contact lens inspection with OphtalCAM button
-        col_inspect = st.columns([4, 1])
-        with col_inspect[0]:
-            st.markdown("#### Lens Fitting Assessment")
-        with col_inspect[1]:
-            ophtalcam_device_button("Contact Lens Inspection", small=True)
         
         # Fitting details
         st.markdown("#### Fitting Details & Assessment")
@@ -2350,7 +2324,11 @@ def contact_lenses():
     
     # OphtalCAM device integration - IZVAN forme
     st.markdown("#### OphtalCAM Device Integration")
-    ophtalcam_device_button("Contact Lens Fitting")
+    col_opht1, col_opht2 = st.columns(2)
+    with col_opht1:
+        ophtalcam_device_button("Preliminary Measurement")
+    with col_opht2:
+        ophtalcam_device_button("Contact Lens Inspection")
 
 # -----------------------
 # PROFESSIONAL CLINICAL REPORT GENERATION
