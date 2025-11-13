@@ -219,6 +219,9 @@ def init_db():
             pupils TEXT,
             rapd TEXT,
             confrontation_fields TEXT,
+            near_point_convergence_break TEXT,
+            near_point_convergence_recovery TEXT,
+            near_point_accommodation TEXT,
             other_notes TEXT,
             FOREIGN KEY (patient_id) REFERENCES patients (id)
         )
@@ -541,42 +544,56 @@ def get_upcoming_appointments(limit=5):
         return pd.DataFrame()
 
 def draw_tabo_scheme(od_axis, os_axis):
-    """Create Tabo scheme visualization for axis"""
+    """Create professional Tabo scheme visualization for axis"""
     od_axis = int(od_axis) if od_axis and str(od_axis).isdigit() else 0
     os_axis = int(os_axis) if os_axis and str(os_axis).isdigit() else 0
     
     return f"""
     <div style="text-align: center; margin: 20px 0;">
-        <!-- OD Circle -->
-        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 20px;">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px;">
-                <!-- OD Axis Line -->
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({od_axis}deg); 
-                            width: 70px; height: 2px; background: #ff4444; transform-origin: center center;">
-                    <div style="position: absolute; right: -5px; top: -5px; width: 10px; height: 10px; background: #ff4444; border-radius: 50%;"></div>
+        <div style="display: flex; justify-content: center; gap: 40px;">
+            <!-- OD Circle -->
+            <div style="position: relative; width: 150px; height: 150px;">
+                <div style="position: absolute; top: 0; left: 0; width: 150px; height: 150px; border: 3px solid #333; border-radius: 50%; background: white;">
+                    <!-- Axis lines -->
+                    <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: #333; transform: translateY(-50%);"></div>
+                    <div style="position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: #333; transform: translateX(-50%);"></div>
+                    <!-- OD Axis Line -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({od_axis}deg); 
+                                width: 65px; height: 3px; background: #ff4444; transform-origin: center center;">
+                        <div style="position: absolute; right: -8px; top: -4px; width: 12px; height: 12px; background: #ff4444; border-radius: 50%; border: 2px solid white;"></div>
+                    </div>
+                    <!-- Degree markers -->
+                    <div style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold;">90</div>
+                    <div style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold;">270</div>
+                    <div style="position: absolute; top: 50%; left: 5px; transform: translateY(-50%); font-size: 10px; font-weight: bold;">180</div>
+                    <div style="position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 10px; font-weight: bold;">0</div>
                 </div>
-                <!-- OD Label -->
-                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #ff4444;">
+                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #ff4444;">
                     OD: {od_axis}°
                 </div>
             </div>
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #ff4444;">OD</div>
-        </div>
-        
-        <!-- OS Circle -->
-        <div style="display: inline-block; position: relative; width: 180px; height: 180px; border: 2px solid #333; border-radius: 50%; margin: 0 20px;">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px;">
-                <!-- OS Axis Line -->
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({os_axis}deg); 
-                            width: 70px; height: 2px; background: #4444ff; transform-origin: center center;">
-                    <div style="position: absolute; right: -5px; top: -5px; width: 10px; height: 10px; background: #4444ff; border-radius: 50%;"></div>
+            
+            <!-- OS Circle -->
+            <div style="position: relative; width: 150px; height: 150px;">
+                <div style="position: absolute; top: 0; left: 0; width: 150px; height: 150px; border: 3px solid #333; border-radius: 50%; background: white;">
+                    <!-- Axis lines -->
+                    <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: #333; transform: translateY(-50%);"></div>
+                    <div style="position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: #333; transform: translateX(-50%);"></div>
+                    <!-- OS Axis Line -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate({os_axis}deg); 
+                                width: 65px; height: 3px; background: #4444ff; transform-origin: center center;">
+                        <div style="position: absolute; right: -8px; top: -4px; width: 12px; height: 12px; background: #4444ff; border-radius: 50%; border: 2px solid white;"></div>
+                    </div>
+                    <!-- Degree markers -->
+                    <div style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold;">90</div>
+                    <div style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold;">270</div>
+                    <div style="position: absolute; top: 50%; left: 5px; transform: translateY(-50%); font-size: 10px; font-weight: bold;">180</div>
+                    <div style="position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 10px; font-weight: bold;">0</div>
                 </div>
-                <!-- OS Label -->
-                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #4444ff;">
+                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #4444ff;">
                     OS: {os_axis}°
                 </div>
             </div>
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #4444ff;">OS</div>
         </div>
     </div>
     """
@@ -1788,7 +1805,7 @@ def refraction_examination():
                         binocular_balance, stereopsis,
                         final_prescribed_od_sphere, final_prescribed_od_cylinder, final_prescribed_od_axis, final_prescribed_os_sphere, final_prescribed_os_cylinder, final_prescribed_os_axis,
                         final_prescribed_binocular_va, final_prescribed_binocular_modifier, final_add_od, final_add_os, final_deg_od, final_deg_os, final_deg_distance, prescription_notes
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     pid, 
                     st.session_state.refraction.get('habitual_type'),
@@ -1857,8 +1874,9 @@ def functional_tests():
             cover_distance = st.text_input("Cover test - Distance", placeholder="e.g., Ortho, 4△ XP", key="cover_dist")
             cover_near = st.text_input("Cover test - Near", placeholder="e.g., Ortho, 6△ XP", key="cover_near")
             
-            # NPC
+            # NPC - DODAN NPC Recovery
             npc_break = st.text_input("NPC Break (cm)", placeholder="e.g., 5", key="npc_break")
+            npc_recovery = st.text_input("NPC Recovery (cm)", placeholder="e.g., 7", key="npc_recovery")
             
         with col2:
             st.markdown("#### Pupils & Visual Fields")
@@ -1883,9 +1901,9 @@ def functional_tests():
                 c = conn.cursor()
                 c.execute('''
                     INSERT INTO functional_tests 
-                    (patient_id, motility, hirschberg, cover_test_distance, cover_test_near, pupils, rapd, confrontation_fields, other_notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (p['id'], motility, hirschberg, cover_distance, cover_near, pupils, rapd, confrontation, other_notes))
+                    (patient_id, motility, hirschberg, cover_test_distance, cover_test_near, pupils, rapd, confrontation_fields, near_point_convergence_break, near_point_convergence_recovery, near_point_accommodation, other_notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (p['id'], motility, hirschberg, cover_distance, cover_near, pupils, rapd, confrontation, npc_break, npc_recovery, npa, other_notes))
                 conn.commit()
                 st.success("Functional tests saved successfully!")
                 st.session_state.exam_step = "anterior_segment"
@@ -2052,6 +2070,7 @@ def posterior_segment_examination():
 
     with st.form("posterior_form"):
         st.markdown("#### Fundus Examination")
+        # ISPRAVLJENO: Uklonjena oftalmoskopija iz padajućeg izbornika
         fundus_type = st.selectbox("Fundus Exam Type", 
                                  ["Indirect ophthalmoscopy", "Fundus camera", "Widefield", "Slit lamp", "Other"], key="fundus_type")
         
@@ -2201,7 +2220,7 @@ def contact_lenses():
             os_axis = st.number_input("Axis OS", min_value=0, max_value=180, value=0, key="cl_os_axis")
             os_add = st.text_input("ADD OS", placeholder="e.g., +1.50 for multifocal", key="cl_os_add")
         
-        # Lens-specific parameters
+        # Lens-specific parameters - ISPRAVLJENO: Svi tipovi leća imaju svoje parametre
         if lens_type == "Soft":
             st.markdown("#### Soft Lens Parameters")
             col_soft1, col_soft2 = st.columns(2)
@@ -2227,7 +2246,7 @@ def contact_lenses():
                 scleral_brand = st.text_input("Brand", placeholder="e.g., Zenlens, PROSE", key="scl_brand")
                 scleral_diameter = st.text_input("Diameter", placeholder="e.g., 16.5mm, 18.0mm", key="scl_diam")
             with col_scl2:
-                scleral_design = st.text_input("Specific Design", placeholder="e.g., PROSE, Zenlens, etc.", key="scl_design")
+                scleral_haptic = st.text_input("Haptic Design", placeholder="e.g., Quadrant specific, Toric", key="scl_haptic")
                 
         elif lens_type == "Ortho-K":
             st.markdown("#### Ortho-K Parameters")
@@ -2401,7 +2420,7 @@ def generate_patient_report():
             # Get clinic logo
             clinic_logo = get_clinic_logo()
             
-            # Tabo scheme za patient report - FIXED: Two separate circles
+            # Tabo scheme za patient report - ISPRAVLJENO: Professional Tabo scheme
             tabo_html = draw_tabo_scheme(
                 ref.get('final_prescribed_od_axis', 0) if not refraction_data.empty else 0,
                 ref.get('final_prescribed_os_axis', 0) if not refraction_data.empty else 0
@@ -2703,7 +2722,7 @@ def generate_prescription_report():
             # Get clinic logo
             clinic_logo = get_clinic_logo()
             
-            # Tabo scheme za prescription - FIXED: Two separate circles
+            # Tabo scheme za prescription - ISPRAVLJENO: Professional Tabo scheme
             tabo_html = draw_tabo_scheme(
                 ref.get('final_prescribed_od_axis', 0),
                 ref.get('final_prescribed_os_axis', 0)
