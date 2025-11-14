@@ -2019,7 +2019,7 @@ def refraction_examination():
         with col_final_near_headers[6]:
             st.write("**VA**")
         with col_final_near_headers[7]:
-            st.write("**ADD**")
+            st.write("**DEG**")
         
         col_final_near_od = st.columns(8)
         with col_final_near_od[0]:
@@ -3891,3 +3891,4 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
