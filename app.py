@@ -2037,7 +2037,7 @@ def refraction_examination():
         with col_final_near_od[6]:
             final_near_od_va = st.text_input("VA OD Near", placeholder="1.0 (-1)", key="final_near_od_va", label_visibility="collapsed")
         with col_final_near_od[7]:
-            final_near_od_add = st.text_input("ADD OD", placeholder="e.g., +1.50", key="final_near_od_add", label_visibility="collapsed")
+            final_near_od_deg = st.text_input("DEG OD", placeholder="e.g., 2.00", key="final_near_od_deg", label_visibility="collapsed")
             
         col_final_near_os = st.columns(8)
         with col_final_near_os[0]:
@@ -2055,7 +2055,7 @@ def refraction_examination():
         with col_final_near_os[6]:
             final_near_os_va = st.text_input("VA OS Near", placeholder="1.0 (-1)", key="final_near_os_va", label_visibility="collapsed")
         with col_final_near_os[7]:
-            final_near_os_add = st.text_input("ADD OS", placeholder="e.g., +1.50", key="final_near_os_add", label_visibility="collapsed")
+            final_near_os_deg = st.text_input("DEG OS", placeholder="e.g., 2.00", key="final_near_os_deg", label_visibility="collapsed
         
         col_bin1, col_bin2 = st.columns(2)
         with col_bin1:
@@ -3891,4 +3891,5 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
