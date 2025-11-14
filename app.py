@@ -2083,8 +2083,9 @@ def refraction_examination():
                 pid = p['id']
 
                 c = conn.cursor()
+
                 # INSERT with updated columns: new ADD fields for distance, DEG fields for near, single bvp below color vision
-                 c.execute('''
+                c.execute('''
                     INSERT INTO refraction_exams (
                         id,
                         patient_id,
@@ -4076,6 +4077,7 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
 
 
