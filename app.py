@@ -2086,7 +2086,7 @@ with col_cyclo2:
             color_vision = st.text_input("Color Vision", placeholder="e.g., Normal", key="color_vision_final")
             prescription_notes = st.text_area("Prescription Notes", height=80, key="presc_notes")
         
-                submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
+            submit_final = st.form_submit_button("Save Refraction & Continue", use_container_width=True)
         
         if submit_final:
             try:
@@ -3911,6 +3911,7 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
 
 
