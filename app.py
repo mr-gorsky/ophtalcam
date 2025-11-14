@@ -1691,19 +1691,19 @@ def refraction_examination():
         
         # Cycloplegic options - KOMPLETNO ISPRAVLJENO
         st.markdown("#### Cycloplegic Refraction")
-        col_cyclo1, col_cyclo2 = st.columns(2)
-        with col_cyclo1:
-            cycloplegic_used = st.checkbox("Cycloplegic Used", key="cyclo_used")
-            if cycloplegic_used:
-                cycloplegic_type = st.selectbox("Cycloplegic Type", 
-                                              ["Cyclopentolate", "Atropine", "Tropicamide", "Homatropine", "Other"],
-                                              key="cyclo_type")
-                cycloplegic_agent = st.text_input("Cycloplegic Agent", placeholder="e.g., Cyclopentolate 1%", key="cyclo_agent")
-                cycloplegic_lot = st.text_input("Lot Number", placeholder="e.g., LOT12345", key="cyclo_lot")
-        with col_cyclo2:
-            if cycloplegic_used:
-                cycloplegic_expiry = st.date_input("Expiry Date", value=date.today() + timedelta(days=365), key="cyclo_expiry")
-                cycloplegic_drops = st.number_input("Number of Drops", min_value=1, max_value=4, value=1, key="cyclo_drops")
+col_cyclo1, col_cyclo2 = st.columns(2)
+with col_cyclo1:
+    cycloplegic_used = st.checkbox("Cycloplegic Used", key="cyclo_used")
+    if cycloplegic_used:
+        cycloplegic_type = st.selectbox("Cycloplegic Type", 
+                                      ["Cyclopentolate", "Atropine", "Tropicamide", "Homatropine", "Other"],
+                                      key="cyclo_type")
+        cycloplegic_agent = st.text_input("Cycloplegic Agent", placeholder="e.g., Cyclopentolate 1%", key="cyclo_agent")
+        cycloplegic_lot = st.text_input("Lot Number", placeholder="e.g., LOT12345", key="cyclo_lot")
+with col_cyclo2:
+    if cycloplegic_used:
+        cycloplegic_expiry = st.date_input("Expiry Date", value=date.today() + timedelta(days=365), key="cyclo_expiry")
+        cycloplegic_drops = st.number_input("Number of Drops", min_value=1, max_value=4, value=1, key="cyclo_drops")
         
         # COMPACT HORIZONTAL LAYOUT za objektivnu refrakciju
         st.markdown("**Objective Refraction Parameters**")
@@ -3911,6 +3911,7 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
 
 
