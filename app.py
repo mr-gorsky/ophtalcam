@@ -42,7 +42,8 @@ def init_db():
                 'subjective_binocular_near_od_prism', 'subjective_binocular_near_od_base', 'subjective_binocular_near_os_prism', 'subjective_binocular_near_os_base',
                 'final_distance_od_prism', 'final_distance_od_base', 'final_distance_os_prism', 'final_distance_os_base',
                 'final_near_od_prism', 'final_near_od_base', 'final_near_os_prism', 'final_near_os_base',
-                'bvp', 'color_vision', 'subjective_binocular_vision', 'near_point_convergence_break', 'near_point_convergence_recovery'
+                'bvp', 'color_vision', 'subjective_binocular_vision', 'near_point_convergence_break', 'near_point_convergence_recovery',
+                'subjective_binocular_notes', 'cycloplegic_agent', 'cycloplegic_lot', 'cycloplegic_expiry', 'cycloplegic_drops'
             ],
             'posterior_segment_exams': [
                 'ophthalmoscopy_od', 'ophthalmoscopy_os'
@@ -2001,7 +2002,7 @@ with col_cyclo2:
         with col_final_dist_os[7]:
             final_os_bvp = st.text_input("BVP OS", placeholder="e.g., 12.5", key="final_os_bvp", label_visibility="collapsed")
         
-        # Final Near Correction with ALL COLUMNS - ISPRAVLJENO: Svi stupci kao za daljinu
+                # Final Near Correction with ALL COLUMNS - ISPRAVLJENO: Svi stupci kao za daljinu
         st.markdown("**Final Near Prescription**")
         col_final_near_headers = st.columns(8)
         with col_final_near_headers[0]:
@@ -2019,7 +2020,7 @@ with col_cyclo2:
         with col_final_near_headers[6]:
             st.write("**VA**")
         with col_final_near_headers[7]:
-            st.write("**DEG**")
+            st.write("**DEG**")  # PROMJENA: ADD -> DEG
         
         col_final_near_od = st.columns(8)
         with col_final_near_od[0]:
@@ -2055,7 +2056,7 @@ with col_cyclo2:
         with col_final_near_os[6]:
             final_near_os_va = st.text_input("VA OS Near", placeholder="1.0 (-1)", key="final_near_os_va", label_visibility="collapsed")
         with col_final_near_os[7]:
-            final_near_os_deg = st.text_input("DEG OS", placeholder="e.g., 2.00", key="final_near_os_deg", label_visibility="collapsed
+            final_near_os_deg = st.text_input("DEG OS", placeholder="e.g., 2.00", key="final_near_os_deg", label_visibility="collapsed")
         
         col_bin1, col_bin2 = st.columns(2)
         with col_bin1:
@@ -3891,6 +3892,7 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
 
 
