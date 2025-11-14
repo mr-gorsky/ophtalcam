@@ -2227,7 +2227,6 @@ def refraction_examination():
         st.rerun()
     except Exception as e:
         st.error(f"Database error: {str(e)}")
-
 def functional_tests():
     st.markdown("<h2 class='main-header'>3. Functional Vision Tests</h2>", unsafe_allow_html=True)
     if 'selected_patient' not in st.session_state or not st.session_state.selected_patient:
@@ -3912,5 +3911,6 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
 
