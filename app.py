@@ -25,25 +25,26 @@ def init_db():
         # Provjeri i dodaj sve missing stupce
         tables_columns = {
             'refraction_exams': [
-                'subjective_add_od', 'subjective_add_os', 'subjective_deg_od', 'subjective_deg_os',
-                'habitual_add_od', 'habitual_add_os', 'habitual_deg_od', 'habitual_deg_os',
-                'final_add_od', 'final_add_os', 'final_deg_od', 'final_deg_os',
-                'habitual_distance_od_sphere', 'habitual_distance_od_cylinder', 'habitual_distance_od_axis',
-                'habitual_distance_os_sphere', 'habitual_distance_os_cylinder', 'habitual_distance_os_axis',
-                'habitual_near_od_sphere', 'habitual_near_od_cylinder', 'habitual_near_od_axis',
-                'habitual_near_os_sphere', 'habitual_near_os_cylinder', 'habitual_near_os_axis',
-                'habitual_distance_od_prism', 'habitual_distance_od_base', 'habitual_distance_os_prism', 'habitual_distance_os_base',
-                'habitual_near_od_prism', 'habitual_near_od_base', 'habitual_near_os_prism', 'habitual_near_os_base',
-                'subjective_binocular_distance_od_sphere', 'subjective_binocular_distance_od_cylinder', 'subjective_binocular_distance_od_axis',
-                'subjective_binocular_distance_os_sphere', 'subjective_binocular_distance_os_cylinder', 'subjective_binocular_distance_os_axis',
-                'subjective_binocular_near_od_sphere', 'subjective_binocular_near_od_cylinder', 'subjective_binocular_near_od_axis',
-                'subjective_binocular_near_os_sphere', 'subjective_binocular_near_os_cylinder', 'subjective_binocular_near_os_axis',
-                'subjective_binocular_distance_od_prism', 'subjective_binocular_distance_od_base', 'subjective_binocular_distance_os_prism', 'subjective_binocular_distance_os_base',
-                'subjective_binocular_near_od_prism', 'subjective_binocular_near_od_base', 'subjective_binocular_near_os_prism', 'subjective_binocular_near_os_base',
-                'final_distance_od_prism', 'final_distance_od_base', 'final_distance_os_prism', 'final_distance_os_base',
-                'final_near_od_prism', 'final_near_od_base', 'final_near_os_prism', 'final_near_os_base',
-                'bvp', 'color_vision', 'subjective_binocular_vision', 'near_point_convergence_break', 'near_point_convergence_recovery', 'final_add_od', 'final_add_os',
-'final_near_deg_od', 'final_near_deg_os',
+                'final_near_od_sphere',
+'final_near_od_cylinder',
+'final_near_od_axis',
+'final_near_od_prism',
+'final_near_od_base',
+'final_near_od_va',
+
+'final_near_os_sphere',
+'final_near_os_cylinder',
+'final_near_os_axis',
+'final_near_os_prism',
+'final_near_os_base',
+'final_near_os_va',
+
+'final_near_deg_od',
+'final_near_deg_os',
+
+'final_add_od',
+'final_add_os',
+
 
             ],
             'posterior_segment_exams': [
@@ -3902,4 +3903,5 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
