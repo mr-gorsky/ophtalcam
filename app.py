@@ -9,6 +9,13 @@ import json
 import hashlib
 import math
 import base64
+import sqlite3
+conn = sqlite3.connect("ophtalcam.db")
+c = conn.cursor()
+cols = c.execute("PRAGMA table_info(refraction_exams)").fetchall()
+st.write("REFRACTION COLUMNS:", cols)
+conn.close()
+
 
 st.set_page_config(page_title="OphtalCAM EMR", page_icon="👁️", layout="wide", initial_sidebar_state="collapsed")
 
@@ -3903,5 +3910,6 @@ conn = init_db()
 
 if __name__ == "__main__":
     main()
+
 
 
